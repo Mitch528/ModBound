@@ -1,4 +1,4 @@
 ModBound
 ========
 
-A mod manager for StarBound
+A mod installer for StarBound

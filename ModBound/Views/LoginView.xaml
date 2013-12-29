@@ -1,0 +1,35 @@
+﻿<UserControl x:Class="ModBound.Views.LoginView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:cal="http://www.caliburnproject.org"
+             xmlns:viewModels="clr-namespace:ModBound.ViewModels"
+             mc:Ignorable="d" 
+             cal:Bind.AtDesignTime="True"
+             d:DataContext="{d:DesignInstance IsDesignTimeCreatable=True, Type={x:Type viewModels:LoginViewModel}}" Height="280" Width="476">
+
+    <UserControl.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Controls.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Fonts.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Colors.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Accents/Blue.xaml" />
+                <ResourceDictionary Source="pack://application:,,,/MahApps.Metro;component/Styles/Accents/BaseLight.xaml" />
+                <ResourceDictionary Source="/Resources/Icons.xaml" />
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </UserControl.Resources>
+
+    <Grid>
+        <Button Content="Login!" HorizontalAlignment="Left" Margin="294,240,0,0" VerticalAlignment="Top" Width="100" Height="30" Click="Login_Click"/>
+        <Button Content="Cancel" HorizontalAlignment="Left" Margin="69,240,0,0" VerticalAlignment="Top" Width="100" Height="30" cal:Message.Attach="CancelLogin()"/>
+        <Label Content="Username" HorizontalAlignment="Left" Margin="84,63,0,0" VerticalAlignment="Top" Foreground="White"/>
+        <TextBox x:Name="Username" HorizontalAlignment="Left" Height="23" Margin="152,63,0,0" TextWrapping="NoWrap" Text="{Binding Username}" VerticalAlignment="Top" Width="181"/>
+        <Label Content="Password" HorizontalAlignment="Left" Margin="84,121,0,0" VerticalAlignment="Top" Foreground="White"/>
+        <PasswordBox x:Name="Password" HorizontalAlignment="Left" Height="23" Margin="152,121,0,0" VerticalAlignment="Top" Width="181"/>
+        <CheckBox x:Name="RememberMe" Content="Remember Me" HorizontalAlignment="Left" Margin="173,174,0,0" VerticalAlignment="Top" Foreground="White"/>
+
+    </Grid>
+</UserControl>
