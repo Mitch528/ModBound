@@ -31,5 +31,10 @@ namespace ModBound.Misc
             return new Uri(Assembly.GetExecutingAssembly().CodeBase).LocalPath;
         }
 
+        public static string GetCurrentExecutingDirectory()
+        {
+            return Path.GetDirectoryName(GetCurrentExecutingFile());
+        }
+
     }
 }

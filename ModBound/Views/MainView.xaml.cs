@@ -29,7 +29,6 @@ using System.Windows.Shapes;
 using MahApps.Metro.Controls;
 using MahApps.Metro.Controls.Dialogs;
 using ModBound.ViewModels;
-using wyDay.Controls;
 
 namespace ModBound.Views
 {
@@ -39,61 +38,9 @@ namespace ModBound.Views
     public partial class MainView : UserControl
     {
 
-        private readonly AutomaticUpdaterBackend _au;
-
         public MainView()
         {
-
             InitializeComponent();
-
-            _au = new AutomaticUpdaterBackend
-            {
-                GUID = "ModBound",
-                UpdateType = UpdateType.Automatic
-            };
-
-            _au.UpdateSuccessful += _au_UpdateSuccessful;
-            _au.ReadyToBeInstalled += _au_ReadyToBeInstalled;
-            _au.ProgressChanged += _au_ProgressChanged;
-            _au.CloseAppNow += (sender, e) => Dispatcher.Invoke(() => Application.Current.Shutdown());
-
-            _au.Initialize();
-            _au.AppLoaded();
-
-            _au.ForceCheckForUpdate(true);
-
-        }
-
-        private void _au_ProgressChanged(object sender, int progress)
-        {
-        }
-
-        private void _au_ReadyToBeInstalled(object sender, EventArgs e)
-        {
-
-            Dispatcher.InvokeAsync(async () =>
-            {
-
-                var metroWindow = (MetroWindow)Application.Current.MainWindow;
-
-                var result = await metroWindow.ShowMessageAsync("Install?", "An update is ready to be installed. Install it now?", MessageDialogStyle.AffirmativeAndNegative);
-
-                if (result == MessageDialogResult.Affirmative)
-                {
-                    _au.InstallNow();
-                }
-
-            }).Wait();
-
-        }
-
-        private async void _au_UpdateSuccessful(object sender, SuccessArgs e)
-        {
-
-            var metroWindow = (MetroWindow)Application.Current.MainWindow;
-
-            await metroWindow.ShowMessageAsync("Success", "ModBound has successfully updated!");
-
         }
 
         private void InstalledModsListView_Drop(object sender, DragEventArgs e)

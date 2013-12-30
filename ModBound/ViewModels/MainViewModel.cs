@@ -38,7 +38,6 @@ using ModBoundLib;
 using ModBoundLib.Extensions;
 using ModBoundLib.Helpers;
 using WpfAnimatedGif;
-using wyDay.Controls;
 
 namespace ModBound.ViewModels
 {
@@ -76,8 +75,6 @@ namespace ModBound.ViewModels
 
         private readonly IWindowManager _windowManager;
 
-        private AutomaticUpdaterBackend _auBackend;
-
         public MainViewModel()
             : this(null)
         {
@@ -86,6 +83,11 @@ namespace ModBound.ViewModels
         [ImportingConstructor]
         public MainViewModel(IWindowManager windowManager)
         {
+
+            string updater = Path.Combine(AssemblyHelper.GetCurrentExecutingDirectory(), "updater.exe");
+
+            if (File.Exists(updater))
+                Process.Start(updater, "/silent");
 
             BrowserProtocol.RegisterModBound();
 
@@ -615,6 +617,9 @@ namespace ModBound.ViewModels
         public async Task RefreshInstalledMods()
         {
 
+            if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder) || !Directory.Exists(Settings.Default.SBInstallFolder))
+                return;
+
             IsRefreshingInstalledMods = true;
 
             InstalledMods.Clear();
@@ -847,6 +852,11 @@ namespace ModBound.ViewModels
 
             if (latestVer != null)
             {
+
+                string tmpFileDir = Path.Combine(TempDir, TempFileDir);
+
+                if (!Directory.Exists(tmpFileDir))
+                    Directory.CreateDirectory(tmpFileDir);
 
                 foreach (var screenshot in latestVer.ScreenShots.Where(p => !string.IsNullOrEmpty(p.FileName)))
                 {
@@ -1121,7 +1131,7 @@ namespace ModBound.ViewModels
 
                 Version ver = Assembly.GetExecutingAssembly().GetName().Version;
 
-                return String.Format("ModBound - Version {0}.{1}", ver.Major, ver.Minor);
+                return String.Format("ModBound - Version {0}.{1}.{2}", ver.Major, ver.Minor, ver.Build);
 
             }
         }

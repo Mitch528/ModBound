@@ -26,7 +26,6 @@ using Caliburn.Micro;
 using MahApps.Metro.Controls;
 using MahApps.Metro.Native;
 using ModBound.ViewModels;
-using wyDay.Controls;
 
 namespace ModBound
 {
