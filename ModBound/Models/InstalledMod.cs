@@ -69,11 +69,56 @@ namespace ModBound.Models
             }
         }
 
+        private bool _isSynced;
+
+        public bool IsSynced
+        {
+            get
+            {
+                return _isSynced;
+            }
+            set
+            {
+
+                if (_isSynced == value)
+                    return;
+
+                _isSynced = value;
+
+                SyncedButtonText = value ? "Disable Sync" : "Enable Sync";
+
+                OnPropertyChanged();
+
+            }
+        }
+
+        private string _syncedButtonText;
+
+        public string SyncedButtonText
+        {
+            get
+            {
+                return _syncedButtonText;
+            }
+            set
+            {
+
+                if (_syncedButtonText == value)
+                    return;
+
+                _syncedButtonText = value;
+
+                OnPropertyChanged();
+
+            }
+        }
+
         public ObservableCollection<string> Files { get; set; }
 
         public InstalledMod()
         {
             Files = new ObservableCollection<string>();
+            SyncedButtonText = "Enable Sync";
         }
 
     }

@@ -76,10 +76,12 @@
     <Compile Include="Responses\PostModResponse.cs" />
     <Compile Include="Responses\RegisterResponse.cs" />
     <Compile Include="Responses\SBModResponse.cs" />
+    <Compile Include="Responses\SyncedModsResponse.cs" />
     <Compile Include="SBMod.cs" />
     <Compile Include="SBModFile.cs" />
     <Compile Include="SBModVersion.cs" />
     <Compile Include="StarBound.cs" />
+    <Compile Include="SyncedMod.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="app.config" />

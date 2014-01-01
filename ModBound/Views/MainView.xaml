@@ -142,6 +142,11 @@
                                                     <Button Content="Remove" Foreground="Red" Width="75"
 														cal:Action.TargetWithoutContext="{Binding DataContext, ElementName=InstalledModsListView}"
 														cal:Message.Attach="RemoveMod($dataContext)"/>
+                                                    <Button Content="{Binding SyncedButtonText}" Foreground="DarkCyan" Width="85"
+                                                        cal:Action.TargetWithoutContext="{Binding DataContext, ElementName=InstalledModsListView}"
+                                                        cal:Message.Attach="SyncMod($dataContext)"
+                                                        Visibility="{Binding DataContext.IsSignedIn, Converter={StaticResource BoolVisibilityConverter}, 
+                                                        RelativeSource={RelativeSource Mode=FindAncestor, AncestorType=UserControl}}"/>
                                                 </StackPanel>
                                             </DataTemplate>
                                         </GridViewColumn.CellTemplate>

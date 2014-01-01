@@ -270,6 +270,33 @@ namespace ModBoundLib
 
         }
 
+        public async Task<SyncedModsResponse> GetSyncedMods()
+        {
+
+            await EnsureSignedIn();
+
+            return await Get<SyncedModsResponse>("GetSyncedMods", _authCookie);
+
+        }
+
+        public async Task<ApiResponse> AddSyncedMod(int modId)
+        {
+
+            await EnsureSignedIn();
+
+            return await Post<ApiResponse>("AddSyncedMod", new { ModId = modId }, _authCookie);
+
+        }
+
+        public async Task<ApiResponse> RemoveSyncedMod(int modId)
+        {
+
+            await EnsureSignedIn();
+
+            return await Post<ApiResponse>("RemoveSyncedMod", new { ModId = modId }, _authCookie);
+
+        }
+
         private async Task EnsureSignedIn()
         {
 

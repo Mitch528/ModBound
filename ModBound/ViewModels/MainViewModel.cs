@@ -158,21 +158,62 @@ namespace ModBound.ViewModels
 
             }
 
-            RefreshInstalledMods();
             RefreshMods();
 
-            if (await _api.SignInAsync())
+            try
             {
 
-                IsSignedIn = true;
+                bool authResult = await _api.SignInAsync();
 
-                RegisterButtonVisible = Visibility.Collapsed;
+                if (authResult)
+                {
 
-                LoginButtonText = "Logout";
+                    IsSignedIn = true;
 
-                RefreshMyMods();
+                    RegisterButtonVisible = Visibility.Collapsed;
 
-                MyAccountInfo = await _api.GetAccountInfo();
+                    LoginButtonText = "Logout";
+
+                    await RefreshInstalledMods();
+
+                    await DownloadUnsyncedMods();
+
+                    RefreshMyMods();
+
+                    MyAccountInfo = await _api.GetAccountInfo();
+
+                }
+                else
+                {
+                    await RefreshInstalledMods();
+                }
+
+            }
+            catch (Exception)
+            {
+            }
+
+        }
+
+        private async Task DownloadUnsyncedMods()
+        {
+
+            if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder))
+            {
+                return;
+            }
+
+            var resp = await _api.GetSyncedMods();
+
+            foreach (SyncedMod syncedMod in resp.SyncedMods)
+            {
+
+                InstalledMod iMod = InstalledMods.SingleOrDefault(p => p.ID == syncedMod.ModId);
+
+                if (iMod == null)
+                {
+                    await DownloadInstallModById(syncedMod.ModId);
+                }
 
             }
 
@@ -192,13 +233,15 @@ namespace ModBound.ViewModels
                 AvailableMods.Add(SBModToUserMod(mod));
             }
 
-
             IsRefreshingMods = false;
 
         }
 
         private async Task RefreshMyMods()
         {
+
+            if (!IsSignedIn)
+                return;
 
             IsRefreshingMyMods = true;
 
@@ -317,6 +360,7 @@ namespace ModBound.ViewModels
 
                 MyAccountInfo = await _api.GetAccountInfo();
 
+                await RefreshInstalledMods();
                 await RefreshMyMods();
 
                 return true;
@@ -335,6 +379,8 @@ namespace ModBound.ViewModels
             MyMods.Clear();
 
             LoginButtonText = "Login";
+
+            await RefreshInstalledMods();
 
             return false;
 
@@ -363,6 +409,7 @@ namespace ModBound.ViewModels
 
                 MyAccountInfo = await _api.GetAccountInfo();
 
+                await RefreshInstalledMods();
                 await RefreshMyMods();
 
                 return true;
@@ -383,6 +430,8 @@ namespace ModBound.ViewModels
             MyMods.Clear();
 
             LoginButtonText = "Login";
+
+            await RefreshInstalledMods();
 
             return false;
 
@@ -605,12 +654,26 @@ namespace ModBound.ViewModels
             var prog = await metroWindow.ShowProgressAsync("Working....", "Installing Mod");
             prog.SetIndeterminate();
 
-            StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+            Exception exception = null;
 
-            await RefreshInstalledMods();
+            try
+            {
+                StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+
+                await RefreshInstalledMods();
+
+            }
+            catch (Exception ex)
+            {
+                exception = ex;
+            }
 
             await prog.CloseAsync();
 
+            if (exception != null)
+            {
+                await metroWindow.ShowMessageAsync("Error", exception.Message);
+            }
 
         }
 
@@ -619,6 +682,13 @@ namespace ModBound.ViewModels
 
             if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder) || !Directory.Exists(Settings.Default.SBInstallFolder))
                 return;
+
+            List<SyncedMod> syncedMods = new List<SyncedMod>();
+
+            if (IsSignedIn)
+            {
+                syncedMods = (await _api.GetSyncedMods()).SyncedMods;
+            }
 
             IsRefreshingInstalledMods = true;
 
@@ -652,6 +722,7 @@ namespace ModBound.ViewModels
                     mod.Name = firstMod.Name;
                     mod.Description = firstMod.Description;
                     mod.Author = firstMod.Author;
+                    mod.IsSynced = syncedMods.Any(p => p.ModId == mod.ID);
 
                     SBModVersion latest = firstMod.Versions.OrderByDescending(p => p.DateAdded).FirstOrDefault();
 
@@ -672,6 +743,16 @@ namespace ModBound.ViewModels
                 }
 
                 InstalledMods.Add(mod);
+
+            }
+
+            foreach (var syncedMod in syncedMods)
+            {
+
+                if (InstalledMods.Any(p => p.ID == syncedMod.ModId && !p.IsSynced))
+                {
+                    await DownloadInstallModById(syncedMod.ModId);
+                }
 
             }
 
@@ -723,8 +804,8 @@ namespace ModBound.ViewModels
 
                 bool result = await DownloadInstallMod(SBModToUserMod(mod));
 
-                if (result)
-                    await metroWindow.ShowMessageAsync("Success", "Mod installed!");
+                //if (result)
+                //    await metroWindow.ShowMessageAsync("Success", "Mod installed!");
 
             }
             else
@@ -737,9 +818,20 @@ namespace ModBound.ViewModels
         public async Task<bool> DownloadInstallMod(UserMod mod)
         {
 
+            var metroWindow = (MetroWindow)Application.Current.MainWindow;
+
+            if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder) || !Directory.Exists(Settings.Default.SBInstallFolder))
+            {
+
+                await metroWindow.ShowMessageAsync("Error", "Could not find StarBound's installation folder!");
+
+                return false;
+
+            }
+
             ModVersion latest = mod.Versions.OrderByDescending(p => p.DateAdded).FirstOrDefault();
 
-            var metroWindow = (MetroWindow)Application.Current.MainWindow;
+
 
             if (latest == null)
             {
@@ -764,13 +856,13 @@ namespace ModBound.ViewModels
 
             string fileName = Path.Combine(TempDir, TempFileDir, latest.File.FileName);
 
-            await _api.DownloadModFile(mod.ID, latest.Version, latest.File.FileName, fileName);
-
-            bool result = await Task.Run(() =>
+            bool result = await Task.Run(async () =>
             {
 
                 try
                 {
+
+                    await _api.DownloadModFile(mod.ID, latest.Version, latest.File.FileName, fileName);
 
                     StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
 
@@ -969,6 +1061,47 @@ namespace ModBound.ViewModels
             await RefreshMods();
 
             MySelectedMod = MyMods.SingleOrDefault(p => p.ID == modId);
+
+        }
+
+        public async void SyncMod(InstalledMod mod)
+        {
+
+            var metroWindow = (MetroWindow)Application.Current.MainWindow;
+
+            if (mod.ID != 0)
+            {
+
+                if (!mod.IsSynced)
+                {
+
+                    var prog = await metroWindow.ShowProgressAsync("Working....", "Syncing mod!");
+
+                    await _api.AddSyncedMod(mod.ID);
+
+                    await RefreshInstalledMods();
+
+                    await prog.CloseAsync();
+
+                }
+                else
+                {
+
+                    var prog = await metroWindow.ShowProgressAsync("Working....", "Unsyncing mod!");
+
+                    await _api.RemoveSyncedMod(mod.ID);
+
+                    await RefreshInstalledMods();
+
+                    await prog.CloseAsync();
+
+                }
+
+            }
+            else
+            {
+                await metroWindow.ShowMessageAsync("Error", "Cannot sync this mod!");
+            }
 
         }
 

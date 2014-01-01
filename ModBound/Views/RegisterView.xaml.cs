@@ -55,22 +55,46 @@ namespace ModBound.Views
                 var prog = await window.ShowProgressAsync("Working....", "Registering!");
                 prog.SetIndeterminate();
 
-                RegisterResponse resp = await ((RegisterViewModel)DataContext).Register(Username.Text, Password.Password, Email.Text);
+                Exception exception = null;
 
-
-                await prog.CloseAsync();
-
-
-                if (resp.ResponseCode != ResponseCodes.Error)
+                try
                 {
-                    ((RegisterViewModel)(DataContext)).TryClose(true);
-                }
-                else
-                {
-                    if (resp.Errors == null || resp.Errors.Length == 0)
-                        await window.ShowMessageAsync("Error", "The username/email has already been used!");
+
+                    RegisterResponse resp = await ((RegisterViewModel)DataContext).Register(Username.Text, Password.Password, Email.Text);
+
+                    await prog.CloseAsync();
+
+                    if (resp.ResponseCode != ResponseCodes.Error)
+                    {
+
+                        ModBoundApi.Default.SetLoginDetails(Username.Text, Password.Password);
+                        
+                        ((RegisterViewModel)(DataContext)).TryClose(true);
+
+                    }
                     else
-                        await window.ShowMessageAsync("Error", string.Join("\n", resp.Errors));
+                    {
+
+                        if (resp.Errors == null || resp.Errors.Length == 0)
+                            await window.ShowMessageAsync("Error", "The username/email has already been used!");
+                        else
+                            await window.ShowMessageAsync("Error", string.Join("\n", resp.Errors));
+                    
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    exception = ex;
+                }
+
+                if (exception != null)
+                {
+
+                    await prog.CloseAsync();
+
+                    await window.ShowMessageAsync("Error", exception.Message);
+                
                 }
 
             }
