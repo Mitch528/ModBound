@@ -3,7 +3,7 @@
   <Profiles />
   <Settings>
     <Setting Name="StarBoundVersion" Type="System.String" Scope="Application">
-      <Value Profile="(Default)">Beta v. Offended Koala</Value>
+      <Value Profile="(Default)">Beta v. Angry Koala</Value>
     </Setting>
   </Settings>
 </SettingsFile>

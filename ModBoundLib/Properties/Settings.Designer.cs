@@ -25,7 +25,7 @@ namespace ModBoundLib.Properties {
         
         [global::System.Configuration.ApplicationScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
-        [global::System.Configuration.DefaultSettingValueAttribute("Beta v. Offended Koala")]
+        [global::System.Configuration.DefaultSettingValueAttribute("Beta v. Angry Koala")]
         public string StarBoundVersion {
             get {
                 return ((string)(this["StarBoundVersion"]));

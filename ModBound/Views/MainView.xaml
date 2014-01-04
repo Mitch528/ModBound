@@ -345,14 +345,6 @@
                         </Rectangle>
                     </Button>
                     <Button HorizontalAlignment="Left" Margin="137,565,0,-1" VerticalAlignment="Top" Style="{DynamicResource MetroCircleButtonStyle}" Height="35" Width="39" Background="White"
-						Foreground="#FFCDC6C6" IsEnabled="{Binding IsRefreshingMyMods, Converter={StaticResource InverseBoolConverter}}">
-                        <Rectangle Fill="#FF383535" Height="16" Width="16">
-                            <Rectangle.OpacityMask>
-                                <VisualBrush Visual="{StaticResource appbar_delete}" Stretch="Fill" />
-                            </Rectangle.OpacityMask>
-                        </Rectangle>
-                    </Button>
-                    <Button HorizontalAlignment="Left" Margin="137,565,0,-1" VerticalAlignment="Top" Style="{DynamicResource MetroCircleButtonStyle}" Height="35" Width="39" Background="White"
 						Foreground="#FFCDC6C6" cal:Message.Attach="DeleteMod()" IsEnabled="{Binding IsRefreshingMyMods, Converter={StaticResource InverseBoolConverter}}">
                         <Rectangle Fill="#FF383535" Height="16" Width="16">
                             <Rectangle.OpacityMask>
@@ -385,17 +377,17 @@
                     </Button>
                     <Button HorizontalAlignment="Left" Margin="908,479,0,0" VerticalAlignment="Top" Style="{DynamicResource MetroCircleButtonStyle}" Height="32" Width="32" Background="White"
 						Foreground="#FFCDC6C6" IsEnabled="{Binding MySelectedModVersion.ScreenShots[1].IsLocked}">
+                        <i:Interaction.Triggers>
+                            <i:EventTrigger EventName="Click">
+                                <cal:ActionMessage MethodName="DeleteScreenshot">
+                                    <cal:Parameter Value="{Binding MySelectedModVersion.ScreenShots[1]}" />
+                                </cal:ActionMessage>
+                            </i:EventTrigger>
+                        </i:Interaction.Triggers>
                         <Rectangle Fill="#FF383535" Height="16" Width="16">
                             <Rectangle.OpacityMask>
                                 <VisualBrush Visual="{StaticResource appbar_delete}" Stretch="Fill" />
                             </Rectangle.OpacityMask>
-                            <i:Interaction.Triggers>
-                                <i:EventTrigger EventName="Click">
-                                    <cal:ActionMessage MethodName="DeleteScreenshot">
-                                        <cal:Parameter Value="{Binding MySelectedModVersion.ScreenShots[1]}" />
-                                    </cal:ActionMessage>
-                                </i:EventTrigger>
-                            </i:Interaction.Triggers>
                         </Rectangle>
                     </Button>
                 </Grid>

@@ -656,9 +656,26 @@ namespace ModBound.ViewModels
 
             Exception exception = null;
 
+            ModInstallResult result = null;
+
             try
             {
-                StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+
+                result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+
+                var depsNeeded = result.DependenciesNeeded.ToList();
+
+                await prog.CloseAsync();
+
+                if (!result.Result && depsNeeded.Count > 0)
+                {
+
+                    if (await InstallRequiredDependencies(depsNeeded))
+                    {
+                        result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+                    }
+
+                }
 
                 await RefreshInstalledMods();
 
@@ -668,11 +685,13 @@ namespace ModBound.ViewModels
                 exception = ex;
             }
 
-            await prog.CloseAsync();
-
             if (exception != null)
             {
                 await metroWindow.ShowMessageAsync("Error", exception.Message);
+            }
+            else if (result != null && !result.Result)
+            {
+                await metroWindow.ShowMessageAsync("Error", "An error has occurred!");
             }
 
         }
@@ -702,6 +721,11 @@ namespace ModBound.ViewModels
 
                 InstalledMod mod = new InstalledMod();
                 mod.Path = modInfo.ModPath;
+
+                if (modInfo.Dependencies != null)
+                {
+                    mod.Dependencies = new ObservableCollection<string>(modInfo.Dependencies);
+                }
 
                 if (modInfo.ExtraData != null)
                 {
@@ -786,6 +810,31 @@ namespace ModBound.ViewModels
         public async void RemoveMod(InstalledMod mod)
         {
 
+            bool isDep = false;
+
+            foreach (InstalledMod iMod in InstalledMods)
+            {
+
+                if (iMod.Dependencies.Any(p => p.Equals(mod.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    isDep = true;
+                }
+
+            }
+
+            if (isDep)
+            {
+
+                var metroWindow = (MetroWindow)Application.Current.MainWindow;
+
+                var result = await metroWindow.ShowMessageAsync("Confirm", "This mod is a dependency for other mods! Removing them might break functionality. Are you sure you want to remove it?", 
+                    MessageDialogStyle.AffirmativeAndNegative);
+
+                if (result == MessageDialogResult.Negative)
+                    return;
+
+            }
+
             IOHelper.DeleteDirectory(mod.Path);
 
             await RefreshInstalledMods();
@@ -856,29 +905,38 @@ namespace ModBound.ViewModels
 
             string fileName = Path.Combine(TempDir, TempFileDir, latest.File.FileName);
 
-            bool result = await Task.Run(async () =>
+            bool result;
+
+            try
             {
 
-                try
+                await _api.DownloadModFile(mod.ID, latest.Version, latest.File.FileName, fileName);
+
+                ModInstallResult res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
+
+                var depsNeeded = res.DependenciesNeeded.ToList();
+
+                await prog.CloseAsync();
+
+                if (!res.Result && depsNeeded.Count > 0)
                 {
 
-                    await _api.DownloadModFile(mod.ID, latest.Version, latest.File.FileName, fileName);
-
-                    StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
-
-                    return true;
+                    if (await InstallRequiredDependencies(depsNeeded))
+                    {
+                        res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
+                    }
 
                 }
-                catch (Exception)
-                {
-                    return false;
-                }
 
-            });
+                result = res.Result;
+
+            }
+            catch (Exception)
+            {
+                result = false;
+            }
 
             File.Delete(fileName);
-
-            await prog.CloseAsync();
 
             if (!result)
                 await metroWindow.ShowMessageAsync("Error", "An error has occurrred!");
@@ -1102,6 +1160,69 @@ namespace ModBound.ViewModels
             {
                 await metroWindow.ShowMessageAsync("Error", "Cannot sync this mod!");
             }
+
+        }
+
+        private async Task<bool> InstallRequiredDependencies(IEnumerable<string> depsNeeded)
+        {
+
+            var metroWindow = (MetroWindow)Application.Current.MainWindow;
+
+            StringBuilder sb = new StringBuilder("The following dependencies are required:" + Environment.NewLine + Environment.NewLine);
+
+            var modsNeeded = new List<SBMod>();
+
+            bool canInstallAll = true;
+
+            foreach (string dep in depsNeeded)
+            {
+
+                List<SBMod> modsFound = await _api.GetMods(0, dep);
+
+                if (modsFound.Count > 0)
+                {
+
+                    modsNeeded.Add(modsFound.First());
+
+                    sb.AppendLine(dep);
+
+                }
+                else
+                {
+
+                    canInstallAll = false;
+
+                    sb.AppendLine(String.Format("{0} (manual installation required)", dep));
+
+                }
+
+            }
+
+            sb.AppendLine(Environment.NewLine + "Install them now?");
+
+            var mRes = await metroWindow.ShowMessageAsync("Confirm", sb.ToString(), MessageDialogStyle.AffirmativeAndNegative);
+
+            if (mRes == MessageDialogResult.Affirmative)
+            {
+
+                foreach (SBMod mod in modsNeeded)
+                {
+                    await DownloadInstallMod(SBModToUserMod(mod));
+                }
+
+                if (!canInstallAll)
+                {
+
+                    await metroWindow.ShowMessageAsync("Error", "Could not install all of the required dependencies. Installation Failed.");
+
+                    return false;
+
+                }
+
+            }
+
+
+            return true;
 
         }
 

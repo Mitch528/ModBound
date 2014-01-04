@@ -52,7 +52,7 @@ namespace ModBoundLib
 
         public const string BackupFormat = "MM-dd-yy-hh-mm-ss";
 
-        public static void InstallMod(string installDir, string modFile)
+        public static ModInstallResult InstallMod(string installDir, string modFile)
         {
 
             if (!File.Exists(modFile))
@@ -70,18 +70,52 @@ namespace ModBoundLib
                 archive.ExtractToDirectory(tempDir);
             }
 
-            string modInfoDir = SearchForModInfo(tempDir);
+            string modInfoFile = SearchForModInfo(tempDir);
+
+            if (string.IsNullOrEmpty(modInfoFile))
+                throw new Exception("Could not find modinfo!");
+
+
+            string modInfoDir = Path.GetDirectoryName(modInfoFile);
+
 
             if (string.IsNullOrEmpty(modInfoDir))
-                throw new Exception("Could not find modinfo!");
+                throw new Exception("An unexpected error has occurred!");
 
             DirectoryInfo midInfo = new DirectoryInfo(modInfoDir);
 
             string path = Path.Combine(installDir, WindowsFolder, GetModSource(installDir), midInfo.Name);
 
+
+            var cInstMods = GetInstalledMods(installDir).ToList();
+
+            ModInfo mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(modInfoFile).RemoveComments());
+
+            var requiredDeps = new List<string>();
+
+            if (mInfo.Dependencies != null && mInfo.Dependencies.Length > 0)
+            {
+
+                foreach (string dep in mInfo.Dependencies)
+                {
+
+                    if (!cInstMods.Any(p => p.Name.Equals(dep, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        requiredDeps.Add(dep);
+                    }
+
+                }
+
+            }
+
+            if (requiredDeps.Count > 0)
+                return new ModInstallResult { Result = false, DependenciesNeeded = requiredDeps };
+
+
             if (Directory.Exists(path))
                 IOHelper.DeleteDirectory(path);
-            
+
+
             IOHelper.CopyDirectory(modInfoDir, path);
 
 
@@ -113,6 +147,8 @@ namespace ModBoundLib
 
             IOHelper.DeleteDirectory(tempDir);
 
+            return new ModInstallResult { Result = true, DependenciesNeeded = new List<string>() };
+
         }
 
         public static void BackupMod(string installDir, string modDirName, string backupTo)
@@ -143,7 +179,7 @@ namespace ModBoundLib
                 if (fInfo == null)
                     continue;
 
-                ModInfo mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName));
+                ModInfo mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName).RemoveComments());
 
                 if (mInfo != null)
                 {
@@ -170,12 +206,14 @@ namespace ModBoundLib
 
             FileInfo[] files = baseDirInfo.GetFiles();
 
-            if (files.Any(p => p.Extension.Equals(ModInfoFileExt, StringComparison.OrdinalIgnoreCase)))
+            FileInfo modInfoFileInfo = files.FirstOrDefault(p => p.Extension.Equals(ModInfoFileExt, StringComparison.OrdinalIgnoreCase));
+
+            if (modInfoFileInfo != null)
             {
-                return baseDirInfo.FullName;
+                return modInfoFileInfo.FullName;
             }
 
-            string modInfoDir = String.Empty;
+            string modInfoFile = String.Empty;
 
             DirectoryInfo[] dInfos = baseDirInfo.GetDirectories();
 
@@ -187,7 +225,7 @@ namespace ModBoundLib
                 if (!string.IsNullOrEmpty(temp))
                 {
 
-                    modInfoDir = temp;
+                    modInfoFile = temp;
 
                     break;
 
@@ -195,7 +233,7 @@ namespace ModBoundLib
 
             }
 
-            return modInfoDir;
+            return modInfoFile;
 
         }
 

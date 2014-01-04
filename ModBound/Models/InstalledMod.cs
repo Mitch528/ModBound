@@ -115,6 +115,8 @@ namespace ModBound.Models
 
         public ObservableCollection<string> Files { get; set; }
 
+        public ObservableCollection<string> Dependencies { get; set; }
+
         public InstalledMod()
         {
             Files = new ObservableCollection<string>();
