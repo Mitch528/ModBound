@@ -119,8 +119,12 @@ namespace ModBound.Models
 
         public InstalledMod()
         {
+
             Files = new ObservableCollection<string>();
+            Dependencies = new ObservableCollection<string>();
+
             SyncedButtonText = "Enable Sync";
+        
         }
 
     }

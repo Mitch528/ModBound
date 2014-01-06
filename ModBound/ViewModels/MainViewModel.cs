@@ -18,7 +18,6 @@ using System.Collections.ObjectModel;
 using System.ComponentModel.Composition;
 using System.Diagnostics;
 using System.IO;
-using System.IO.Compression;
 using System.Linq;
 using System.Reflection;
 using System.Text;
@@ -33,11 +32,9 @@ using MahApps.Metro.Controls.Dialogs;
 using ModBound.Misc;
 using ModBound.Models;
 using ModBound.Properties;
-using ModBound.Views;
 using ModBoundLib;
 using ModBoundLib.Extensions;
 using ModBoundLib.Helpers;
-using WpfAnimatedGif;
 
 namespace ModBound.ViewModels
 {
@@ -87,11 +84,38 @@ namespace ModBound.ViewModels
             string updater = Path.Combine(AssemblyHelper.GetCurrentExecutingDirectory(), "updater.exe");
 
             if (File.Exists(updater))
-                Process.Start(updater, "/silent");
+            {
+
+                ProcessStartInfo psi = new ProcessStartInfo(updater, "/justcheck");
+
+                Process updaterProc = new Process();
+                updaterProc.StartInfo = psi;
+                updaterProc.EnableRaisingEvents = true;
+
+                updaterProc.Exited += (sender, e) =>
+                {
+
+                    if (updaterProc.ExitCode == 0)
+                    {
+                        Process.Start(updater, "/checknow");
+                    }
+
+                };
+
+                updaterProc.Start();
+
+            }
 
             BrowserProtocol.RegisterModBound();
 
             _windowManager = windowManager;
+
+            if (Settings.Default.UpdateSettings)
+            {
+                Settings.Default.Upgrade();
+                Settings.Default.UpdateSettings = false;
+                Settings.Default.Save();
+            }
 
             if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder))
             {
@@ -198,7 +222,7 @@ namespace ModBound.ViewModels
         private async Task DownloadUnsyncedMods()
         {
 
-            if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder))
+            if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder) || !Directory.Exists(Settings.Default.SBInstallFolder))
             {
                 return;
             }
@@ -230,7 +254,8 @@ namespace ModBound.ViewModels
 
             foreach (SBMod mod in mods)
             {
-                AvailableMods.Add(SBModToUserMod(mod));
+                if (AvailableMods.All(p => p.ID != mod.ID))
+                    AvailableMods.Add(SBModToUserMod(mod));
             }
 
             IsRefreshingMods = false;
@@ -316,9 +341,9 @@ namespace ModBound.ViewModels
         public void PlayStarbound()
         {
 
-            string dir = StarBound.SearchForInstallDir();
+            string dir = Settings.Default.SBInstallFolder;
 
-            if (string.IsNullOrEmpty(dir))
+            if (string.IsNullOrEmpty(dir) || !Directory.Exists(dir))
             {
 
                 var metroWindow = (MetroWindow)Application.Current.MainWindow;
@@ -634,7 +659,6 @@ namespace ModBound.ViewModels
 
             var browseResult = new BrowseFolderResult("Select a folder to backup to")
                 .AllowNewFolder()
-                .In(Environment.SpecialFolder.MyDocuments)
                 .WithSelectedPathDo(x => StarBound.BackupMod(Settings.Default.SBInstallFolder, new DirectoryInfo(mod.Path).Name, x));
 
             try
@@ -654,36 +678,41 @@ namespace ModBound.ViewModels
             var prog = await metroWindow.ShowProgressAsync("Working....", "Installing Mod");
             prog.SetIndeterminate();
 
-            Exception exception = null;
-
             ModInstallResult result = null;
 
-            try
+            Exception exception = await Task.Run(async () =>
             {
 
-                result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
-
-                var depsNeeded = result.DependenciesNeeded.ToList();
-
-                await prog.CloseAsync();
-
-                if (!result.Result && depsNeeded.Count > 0)
+                try
                 {
 
-                    if (await InstallRequiredDependencies(depsNeeded))
+                    result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+
+                    var depsNeeded = result.DependenciesNeeded.ToList();
+
+                    Dispatcher.CurrentDispatcher.Invoke(async () => await prog.CloseAsync());
+
+                    if (!result.Result && depsNeeded.Count > 0)
                     {
-                        result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+
+                        if (await InstallRequiredDependencies(depsNeeded))
+                        {
+                            result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+                        }
+
                     }
 
                 }
+                catch (Exception ex)
+                {
+                    return ex;
+                }
 
-                await RefreshInstalledMods();
+                return null;
 
-            }
-            catch (Exception ex)
-            {
-                exception = ex;
-            }
+            });
+
+            await RefreshInstalledMods();
 
             if (exception != null)
             {
@@ -766,7 +795,10 @@ namespace ModBound.ViewModels
                     mod.Author = "Unknown";
                 }
 
-                InstalledMods.Add(mod);
+                if (!InstalledMods.Any(p => p.Name.Equals(mod.Name, StringComparison.OrdinalIgnoreCase)))
+                {
+                    InstalledMods.Add(mod);
+                }
 
             }
 
@@ -815,7 +847,7 @@ namespace ModBound.ViewModels
             foreach (InstalledMod iMod in InstalledMods)
             {
 
-                if (iMod.Dependencies.Any(p => p.Equals(mod.Name, StringComparison.OrdinalIgnoreCase)))
+                if (iMod.Dependencies != null && iMod.Dependencies.Any(p => p.Equals(mod.Name, StringComparison.OrdinalIgnoreCase)))
                 {
                     isDep = true;
                 }
@@ -827,7 +859,7 @@ namespace ModBound.ViewModels
 
                 var metroWindow = (MetroWindow)Application.Current.MainWindow;
 
-                var result = await metroWindow.ShowMessageAsync("Confirm", "This mod is a dependency for other mods! Removing them might break functionality. Are you sure you want to remove it?", 
+                var result = await metroWindow.ShowMessageAsync("Confirm", "This mod is a dependency for other mods! Removing it might break functionality. Are you sure you want to remove it?",
                     MessageDialogStyle.AffirmativeAndNegative);
 
                 if (result == MessageDialogResult.Negative)
@@ -905,36 +937,39 @@ namespace ModBound.ViewModels
 
             string fileName = Path.Combine(TempDir, TempFileDir, latest.File.FileName);
 
-            bool result;
-
-            try
+            bool result = await Task.Run(async () =>
             {
 
-                await _api.DownloadModFile(mod.ID, latest.Version, latest.File.FileName, fileName);
-
-                ModInstallResult res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
-
-                var depsNeeded = res.DependenciesNeeded.ToList();
-
-                await prog.CloseAsync();
-
-                if (!res.Result && depsNeeded.Count > 0)
+                try
                 {
 
-                    if (await InstallRequiredDependencies(depsNeeded))
+                    await _api.DownloadModFile(mod.ID, latest.Version, latest.File.FileName, fileName);
+
+                    ModInstallResult res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
+
+                    var depsNeeded = res.DependenciesNeeded.ToList();
+
+                    Dispatcher.CurrentDispatcher.Invoke(async () => await prog.CloseAsync());
+
+                    if (!res.Result && depsNeeded.Count > 0)
                     {
-                        res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
+
+                        if (await InstallRequiredDependencies(depsNeeded))
+                        {
+                            res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
+                        }
+
                     }
 
+                    return res.Result;
+
+                }
+                catch (Exception)
+                {
+                    return false;
                 }
 
-                result = res.Result;
-
-            }
-            catch (Exception)
-            {
-                result = false;
-            }
+            });
 
             File.Delete(fileName);
 

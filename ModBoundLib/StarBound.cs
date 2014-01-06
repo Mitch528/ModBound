@@ -24,6 +24,7 @@ using ModBoundLib.Extensions;
 using ModBoundLib.Extensions.Json;
 using ModBoundLib.Helpers;
 using ModBoundLib.Properties;
+using MoreLinq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 
@@ -169,6 +170,9 @@ namespace ModBoundLib
 
             string path = Path.Combine(installDir, WindowsFolder, GetModSource(installDir));
 
+            if (!Directory.Exists(path))
+                return modInfos;
+
             foreach (DirectoryInfo dInfo in new DirectoryInfo(path).GetDirectories())
             {
 
@@ -179,7 +183,16 @@ namespace ModBoundLib
                 if (fInfo == null)
                     continue;
 
-                ModInfo mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName).RemoveComments());
+                ModInfo mInfo;
+
+                try
+                {
+                    mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName).RemoveComments());
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
 
                 if (mInfo != null)
                 {
@@ -192,7 +205,7 @@ namespace ModBoundLib
 
             }
 
-            return modInfos;
+            return modInfos.DistinctBy(p => p.Name.ToLower());
 
         }
 
