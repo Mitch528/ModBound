@@ -113,6 +113,27 @@ namespace ModBound.Models
             }
         }
 
+        private int _modOrder;
+
+        public int ModOrder
+        {
+            get
+            {
+                return _modOrder;
+            }
+            set
+            {
+
+                if (_modOrder == value)
+                    return;
+
+                _modOrder = value;
+
+                OnPropertyChanged();
+
+            }
+        }
+
         public ObservableCollection<string> Files { get; set; }
 
         public ObservableCollection<string> Dependencies { get; set; }

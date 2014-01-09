@@ -27,6 +27,8 @@ using ModBoundLib.Properties;
 using MoreLinq;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using SharpCompress.Archive;
+using SharpCompress.Common;
 
 namespace ModBoundLib
 {
@@ -45,7 +47,14 @@ namespace ModBoundLib
             ".modinfo"
         };
 
+        private readonly static string[] ArchiveTypesSupported = 
+        {
+            ".zip", ".rar", ".7z"
+        };
+
         public const string ModBoundDir = "ModBound";
+
+        public const string ModBoundModDir = "ModBoundMods";
 
         public const string ModInfoFileExt = ".modinfo";
 
@@ -53,102 +62,155 @@ namespace ModBoundLib
 
         public const string BackupFormat = "MM-dd-yy-hh-mm-ss";
 
-        public static ModInstallResult InstallMod(string installDir, string modFile)
+        public static ModInstallResult InstallMod(string installDir, string modFile, List<ModBuildOrder> modOrder, bool merge = true)
         {
 
             if (!File.Exists(modFile))
                 throw new FileNotFoundException("File not found!", modFile);
 
-            if (Path.GetExtension(modFile) != ".zip")
-                throw new NotSupportedException("Only .zip files are currently supported!");
+            if (!ArchiveTypesSupported.Any(p => p.Equals(Path.GetExtension(modFile))))
+                throw new NotSupportedException("File type not supported! (Supported: " + string.Join(", ", ArchiveTypesSupported) + ")");
 
             string tempDir = Path.Combine(Path.GetTempPath(), Path.GetRandomFileName());
 
             Directory.CreateDirectory(tempDir);
 
-            using (ZipArchive archive = ZipFile.Open(modFile, ZipArchiveMode.Read))
+            using (IArchive archive = ArchiveFactory.Open(modFile))
             {
-                archive.ExtractToDirectory(tempDir);
+                archive.WriteToDirectory(tempDir, ExtractOptions.ExtractFullPath | ExtractOptions.Overwrite);
             }
 
-            string modInfoFile = SearchForModInfo(tempDir);
+            //using (ZipArchive archive = ZipFile.Open(modFile, ZipArchiveMode.Read))
+            //{
+            //    archive.ExtractToDirectory(tempDir);
+            //}
 
-            if (string.IsNullOrEmpty(modInfoFile))
+            List<string> modInfoFiles = SearchForModInfos(tempDir).ToList();
+
+            if (!modInfoFiles.Any())
                 throw new Exception("Could not find modinfo!");
 
 
-            string modInfoDir = Path.GetDirectoryName(modInfoFile);
-
-
-            if (string.IsNullOrEmpty(modInfoDir))
-                throw new Exception("An unexpected error has occurred!");
-
-            DirectoryInfo midInfo = new DirectoryInfo(modInfoDir);
-
-            string path = Path.Combine(installDir, WindowsFolder, GetModSource(installDir), midInfo.Name);
-
-
-            var cInstMods = GetInstalledMods(installDir).ToList();
-
-            ModInfo mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(modInfoFile).RemoveComments());
+            string modSource = GetModSource(installDir);
 
             var requiredDeps = new List<string>();
 
-            if (mInfo.Dependencies != null && mInfo.Dependencies.Length > 0)
+            foreach (string modInfoFile in modInfoFiles)
             {
 
-                foreach (string dep in mInfo.Dependencies)
+                string modInfoDir = Path.GetDirectoryName(modInfoFile);
+
+
+                if (string.IsNullOrEmpty(modInfoDir))
+                    throw new Exception("An unexpected error has occurred!");
+
+                DirectoryInfo midInfo = new DirectoryInfo(modInfoDir);
+
+
+                var cInstMods = GetInstalledMods(installDir).ToList();
+
+                ModInfo mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(modInfoFile));
+
+                if (mInfo.Dependencies != null && mInfo.Dependencies.Length > 0)
                 {
 
-                    if (!cInstMods.Any(p => p.Name.Equals(dep, StringComparison.OrdinalIgnoreCase)))
+                    foreach (string dep in mInfo.Dependencies)
                     {
-                        requiredDeps.Add(dep);
+
+                        if (!cInstMods.Any(p => p.Name.Equals(dep, StringComparison.OrdinalIgnoreCase)))
+                        {
+                            requiredDeps.Add(dep);
+                        }
+
                     }
+
+                    if (requiredDeps.Any())
+                        break;
 
                 }
 
+                bool any = false;
+
+                if (merge)
+                {
+                    foreach (ModInfo instMod in cInstMods.Where(p => !p.Name.Equals(midInfo.Name)))
+                    {
+                        if (IOHelper.AnyFilesOverlapInDirectories(modInfoDir, instMod.ModPath))
+                        {
+
+                            any = true;
+
+                            DirectoryInfo dInfo0 = new DirectoryInfo(instMod.ModPath);
+
+                            DirectoryInfo dInfo = new DirectoryInfo(Path.Combine(installDir, ModBoundDir, dInfo0.Name));
+
+                            if (dInfo.Exists && dInfo.FullName == dInfo0.FullName)
+                                continue;
+
+                            Directory.Move(instMod.ModPath, dInfo.FullName);
+
+                        }
+                    }
+                }
+
+                if (any)
+                {
+
+                    string path = Path.Combine(installDir, ModBoundDir, midInfo.Name);
+
+                    if (Directory.Exists(path))
+                        IOHelper.DeleteDirectory(path);
+
+                    IOHelper.CopyDirectory(modInfoDir, path);
+
+                    if (modOrder != null)
+                        RebuildMods(installDir, modOrder);
+
+                }
+                else
+                {
+
+                    string path = Path.Combine(installDir, WindowsFolder, modSource, midInfo.Name);
+
+                    if (Directory.Exists(path))
+                        IOHelper.DeleteDirectory(path);
+
+
+                    IOHelper.CopyDirectory(modInfoDir, path);
+
+                }
+
+                //IOHelper.CopyDirectory(modInfoDir, Path.Combine(installDir, ModBoundDir, midInfo.Name));
+
+                //RebuildMods(installDir, modBuildOrder ?? new List<ModBuildOrder>());
+
+
+                //if (modDir != null)
+                //{
+                //    IOHelper.CopyDirectory(modDir.FullName, installDir);
+                //}
+
+                //foreach (string assetSource in StarBound.GetAssetSources(installDir))
+                //{
+
+                //    string path = Path.Combine(installDir, StarBound.WindowsFolder, assetSource);
+
+                //    DirectoryInfo dInfo = new DirectoryInfo(path);
+
+                //    DirectoryInfo dInfo2 = dirs.SingleOrDefault(p => p.Name == dInfo.Name);
+
+                //    if (dInfo2 == null)
+                //        continue;
+
+                //    MergeModFiles(dInfo2, dInfo);
+
+                //}
+
             }
-
-            if (requiredDeps.Count > 0)
-                return new ModInstallResult { Result = false, DependenciesNeeded = requiredDeps };
-
-
-            if (Directory.Exists(path))
-                IOHelper.DeleteDirectory(path);
-
-
-            IOHelper.CopyDirectory(modInfoDir, path);
-
-
-            //IOHelper.CopyDirectory(modInfoDir, Path.Combine(installDir, ModBoundDir, midInfo.Name));
-
-            //RebuildMods(installDir, modBuildOrder ?? new List<ModBuildOrder>());
-
-
-            //if (modDir != null)
-            //{
-            //    IOHelper.CopyDirectory(modDir.FullName, installDir);
-            //}
-
-            //foreach (string assetSource in StarBound.GetAssetSources(installDir))
-            //{
-
-            //    string path = Path.Combine(installDir, StarBound.WindowsFolder, assetSource);
-
-            //    DirectoryInfo dInfo = new DirectoryInfo(path);
-
-            //    DirectoryInfo dInfo2 = dirs.SingleOrDefault(p => p.Name == dInfo.Name);
-
-            //    if (dInfo2 == null)
-            //        continue;
-
-            //    MergeModFiles(dInfo2, dInfo);
-
-            //}
 
             IOHelper.DeleteDirectory(tempDir);
 
-            return new ModInstallResult { Result = true, DependenciesNeeded = new List<string>() };
+            return new ModInstallResult { Result = requiredDeps.Count == 0, DependenciesNeeded = requiredDeps };
 
         }
 
@@ -156,8 +218,6 @@ namespace ModBoundLib
         {
 
             string dir = Path.Combine(installDir, WindowsFolder, GetModSource(installDir), modDirName);
-
-            Console.WriteLine(modDirName + " " + dir + " " + Path.Combine(backupTo, String.Format("{0}-{1}.zip", modDirName, DateTime.Now.ToString(BackupFormat))));
 
             ZipFile.CreateFromDirectory(dir, Path.Combine(backupTo, String.Format("{0}-{1}.zip", modDirName, DateTime.Now.ToString(BackupFormat))));
 
@@ -168,12 +228,13 @@ namespace ModBoundLib
 
             List<ModInfo> modInfos = new List<ModInfo>();
 
+            string mbPath = Path.Combine(installDir, ModBoundDir);
             string path = Path.Combine(installDir, WindowsFolder, GetModSource(installDir));
 
             if (!Directory.Exists(path))
                 return modInfos;
 
-            foreach (DirectoryInfo dInfo in new DirectoryInfo(path).GetDirectories())
+            foreach (DirectoryInfo dInfo in new DirectoryInfo(path).GetDirectories().Where(p => !p.Name.Equals(ModBoundModDir)))
             {
 
                 FileInfo[] fileInfos = dInfo.GetFiles();
@@ -187,7 +248,39 @@ namespace ModBoundLib
 
                 try
                 {
-                    mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName).RemoveComments());
+                    mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName));
+                }
+                catch (Exception)
+                {
+                    continue;
+                }
+
+                if (mInfo != null)
+                {
+
+                    mInfo.ModPath = dInfo.FullName;
+
+                    modInfos.Add(mInfo);
+
+                }
+
+            }
+
+            foreach (DirectoryInfo dInfo in new DirectoryInfo(mbPath).GetDirectories())
+            {
+
+                FileInfo[] fileInfos = dInfo.GetFiles();
+
+                FileInfo fInfo = fileInfos.FirstOrDefault(p => p.Extension == ModInfoFileExt);
+
+                if (fInfo == null)
+                    continue;
+
+                ModInfo mInfo;
+
+                try
+                {
+                    mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName));
                 }
                 catch (Exception)
                 {
@@ -209,11 +302,13 @@ namespace ModBoundLib
 
         }
 
-        public static string SearchForModInfo(string baseDir)
+        public static IEnumerable<string> SearchForModInfos(string baseDir)
         {
 
             if (!Directory.Exists(baseDir))
                 throw new DirectoryNotFoundException();
+
+            List<string> modInfos = new List<string>();
 
             DirectoryInfo baseDirInfo = new DirectoryInfo(baseDir);
 
@@ -223,30 +318,17 @@ namespace ModBoundLib
 
             if (modInfoFileInfo != null)
             {
-                return modInfoFileInfo.FullName;
+                modInfos.Add(modInfoFileInfo.FullName);
             }
-
-            string modInfoFile = String.Empty;
 
             DirectoryInfo[] dInfos = baseDirInfo.GetDirectories();
 
             foreach (DirectoryInfo dInfo in dInfos)
             {
-
-                string temp = SearchForModInfo(dInfo.FullName);
-
-                if (!string.IsNullOrEmpty(temp))
-                {
-
-                    modInfoFile = temp;
-
-                    break;
-
-                }
-
+                modInfos.AddRange(SearchForModInfos(dInfo.FullName));
             }
 
-            return modInfoFile;
+            return modInfos;
 
         }
 
@@ -270,14 +352,16 @@ namespace ModBoundLib
 
             }
 
-            string modModBoundDir = Path.Combine(installDir, WindowsFolder, modSource, ModBoundDir);
+            string modModBoundDir = Path.Combine(installDir, WindowsFolder, modSource, ModBoundModDir);
 
-            if (!Directory.Exists(modModBoundDir))
-                Directory.CreateDirectory(modModBoundDir);
+            if (Directory.Exists(modModBoundDir))
+                IOHelper.DeleteDirectory(modModBoundDir, false);
+
+            Directory.CreateDirectory(modModBoundDir);
 
             string mbInfo = JsonConvert.SerializeObject(new ModInfo
             {
-                Name = "ModBound",
+                Name = "ModBoundMods",
                 Path = ".",
                 Dependencies = new string[0],
                 Version = Settings.Default.StarBoundVersion
@@ -291,14 +375,27 @@ namespace ModBoundLib
 
             DirectoryInfo[] inMbDir = pathInfo.GetDirectories();
 
+            List<ModInfo> instMods = GetInstalledMods(installDir).ToList();
+
             if (modBuildOrder.Count > 0)
             {
-                var oRev = modBuildOrder.OrderBy(p => p.BuildOrder).Reverse();
+
+                var oRev = modBuildOrder.OrderBy(p => p.BuildOrder);
 
                 foreach (var order in oRev)
                 {
 
-                    DirectoryInfo dInfo = inMbDir.SingleOrDefault(p => p.Name.Equals(order.ModName, StringComparison.OrdinalIgnoreCase));
+                    ModInfo installedMod = instMods.SingleOrDefault(p => p.Name.Equals(order.ModName, StringComparison.OrdinalIgnoreCase));
+
+                    if (installedMod == null)
+                        continue;
+
+                    DirectoryInfo mDirInfo = new DirectoryInfo(installedMod.ModPath);
+
+                    if (!mDirInfo.Exists)
+                        continue;
+
+                    DirectoryInfo dInfo = inMbDir.SingleOrDefault(p => p.Name.Equals(mDirInfo.Name, StringComparison.OrdinalIgnoreCase));
 
                     if (dInfo == null)
                         continue;
@@ -311,13 +408,36 @@ namespace ModBoundLib
             foreach (DirectoryInfo dInfo in inMbDir)
             {
 
-                if (modBuildOrder.Any(p => p.ModName.Equals(dInfo.Name, StringComparison.OrdinalIgnoreCase)))
+                ModInfo installedMod = instMods.SingleOrDefault(p => p.Name.Equals(dInfo.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (installedMod == null)
+                    continue;
+
+                DirectoryInfo mDirInfo = new DirectoryInfo(installedMod.ModPath);
+
+                if (!mDirInfo.Exists)
+                    continue;
+
+                if (modBuildOrder.Any(p => p.ModName.Equals(installedMod.Name, StringComparison.OrdinalIgnoreCase)))
                     continue;
 
                 MergeModFiles(dInfo, msInfo);
 
             }
 
+
+        }
+
+        public static bool HasConflictingMods(string installDir)
+        {
+
+            string modBoundDir = Path.Combine(installDir, ModBoundDir);
+            string modBoundModDir = Path.Combine(installDir, WindowsFolder, GetModSource(installDir), ModBoundModDir);
+
+            DirectoryInfo dInfo = new DirectoryInfo(modBoundDir);
+            DirectoryInfo dinfo2 = new DirectoryInfo(modBoundModDir);
+
+            return (dInfo.Exists && dInfo.GetDirectories().Any()) || (dinfo2.Exists && (dinfo2.GetDirectories().Any() || dinfo2.GetFiles().Any()));
 
         }
 
@@ -340,7 +460,7 @@ namespace ModBoundLib
                         var newJ = JToken.Parse(File.ReadAllText(sFileInfo.FullName).RemoveComments());
                         var orig = JToken.Parse(File.ReadAllText(f.FullName).RemoveComments());
 
-                        var merged = orig.Merge(newJ);
+                        var merged = newJ.Merge(orig, new MergeOptions { ArrayHandling = MergeOptionArrayHandling.Concat });
 
                         File.WriteAllText(Path.Combine(destInfo.FullName, sFileInfo.Name), merged.ToString(Formatting.Indented));
 

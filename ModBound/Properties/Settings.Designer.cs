@@ -94,5 +94,29 @@ namespace ModBound.Properties {
                 this["UpdateSettings"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("")]
+        public string ModOrder {
+            get {
+                return ((string)(this["ModOrder"]));
+            }
+            set {
+                this["ModOrder"] = value;
+            }
+        }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool MergeMods {
+            get {
+                return ((bool)(this["MergeMods"]));
+            }
+            set {
+                this["MergeMods"] = value;
+            }
+        }
     }
 }

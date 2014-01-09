@@ -24,7 +24,7 @@ namespace ModBoundLib.Helpers
     public static class IOHelper
     {
 
-        public static void DeleteDirectory(string dirToDelete)
+        public static void DeleteDirectory(string dirToDelete, bool removeTop = true)
         {
             string[] files = Directory.GetFiles(dirToDelete);
             string[] dirs = Directory.GetDirectories(dirToDelete);
@@ -40,7 +40,9 @@ namespace ModBoundLib.Helpers
                 DeleteDirectory(dir);
             }
 
-            Directory.Delete(dirToDelete, true);
+            if (removeTop)
+                Directory.Delete(dirToDelete, true);
+        
         }
 
         public static void CopyDirectory(string source, string dest)
@@ -62,6 +64,44 @@ namespace ModBoundLib.Helpers
             {
                 CopyDirectory(dInfo.FullName, Path.Combine(dest, dInfo.Name));
             }
+
+        }
+
+        public static bool AnyFilesOverlapInDirectories(string dir1, string dir2)
+        {
+
+            DirectoryInfo dir1Info = new DirectoryInfo(dir1);
+            DirectoryInfo dir2Info = new DirectoryInfo(dir2);
+
+            if (!dir1Info.Exists || !dir2Info.Exists)
+                throw new DirectoryNotFoundException();
+
+            if (dir1Info.FullName == dir2Info.FullName)
+                return true;
+
+            FileInfo[] dir2FInfo = dir2Info.GetFiles();
+
+            foreach (FileInfo fInfo in dir1Info.GetFiles())
+            {
+
+                if (dir2FInfo.Any(p => p.Name.Equals(fInfo.Name, StringComparison.OrdinalIgnoreCase) && p.Extension.Equals(fInfo.Extension, StringComparison.OrdinalIgnoreCase)))
+                    return true;
+
+            }
+
+            DirectoryInfo[] dir2DInfo = dir2Info.GetDirectories();
+
+            foreach (DirectoryInfo dInfo in dir1Info.GetDirectories())
+            {
+
+                DirectoryInfo dInfo2 = dir2DInfo.SingleOrDefault(p => p.Name.Equals(dInfo.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (dInfo2 != null && AnyFilesOverlapInDirectories(dInfo.FullName, dInfo2.FullName))
+                    return true;
+
+            }
+
+            return false;
 
         }
 

@@ -120,6 +120,7 @@ namespace ModBound
 
                 Button settingsButton = new Button();
                 settingsButton.Content = "Settings";
+                settingsButton.Click += (sender, e) => mvm.OpenSettingsDialog();
 
                 Button accountButton = new Button();
                 accountButton.Content = "Account";
@@ -144,7 +145,7 @@ namespace ModBound
                 registerButton.Click += (sender, e) => mvm.OpenRegisterDialog();
 
                 WindowCommands wc = new WindowCommands();
-                //wc.Items.Add(settingsButton);
+                wc.Items.Add(settingsButton);
                 //wc.Items.Add(accountButton);
                 wc.Items.Add(loginLogoutButton);
                 wc.Items.Add(registerButton);

@@ -27,6 +27,7 @@ using System.Windows.Media.Imaging;
 using System.Windows.Threading;
 using Caliburn.Micro;
 using Caliburn.Micro.Contrib.Results;
+using GongSolutions.Wpf.DragDrop;
 using MahApps.Metro.Controls;
 using MahApps.Metro.Controls.Dialogs;
 using ModBound.Misc;
@@ -35,11 +36,12 @@ using ModBound.Properties;
 using ModBoundLib;
 using ModBoundLib.Extensions;
 using ModBoundLib.Helpers;
+using Newtonsoft.Json;
 
 namespace ModBound.ViewModels
 {
     [Export]
-    public class MainViewModel : MBViewModel
+    public class MainViewModel : MBViewModel, IDropTarget
     {
 
         private string _status;
@@ -365,6 +367,11 @@ namespace ModBound.ViewModels
 
         }
 
+        public void OpenSettingsDialog()
+        {
+            _windowManager.ShowDialog(new SettingsViewModel());
+        }
+
         public async Task<bool> OpenRegisterDialog()
         {
 
@@ -680,24 +687,30 @@ namespace ModBound.ViewModels
 
             ModInstallResult result = null;
 
+            Dispatcher dispatch = Dispatcher.CurrentDispatcher;
+
+            string modOrderJson = Settings.Default.ModOrder;
+
+            List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
+
             Exception exception = await Task.Run(async () =>
             {
 
                 try
                 {
 
-                    result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+                    result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile, modOrder, Settings.Default.MergeMods);
 
                     var depsNeeded = result.DependenciesNeeded.ToList();
 
-                    Dispatcher.CurrentDispatcher.Invoke(async () => await prog.CloseAsync());
+                    dispatch.Invoke(async () => await prog.CloseAsync());
 
                     if (!result.Result && depsNeeded.Count > 0)
                     {
 
-                        if (await InstallRequiredDependencies(depsNeeded))
+                        if (await dispatch.Invoke(async () => await InstallRequiredDependencies(depsNeeded)))
                         {
-                            result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile);
+                            result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile, modOrder, Settings.Default.MergeMods);
                         }
 
                     }
@@ -713,15 +726,82 @@ namespace ModBound.ViewModels
             });
 
             await RefreshInstalledMods();
+            await RefreshModOrder(true);
 
             if (exception != null)
             {
                 await metroWindow.ShowMessageAsync("Error", exception.Message);
             }
-            else if (result != null && !result.Result)
+
+        }
+
+        public async Task RefreshModOrder(bool forceRebuild = false)
+        {
+
+
+            var metroWindow = (MetroWindow)Application.Current.MainWindow;
+
+            Exception exception = null;
+
+            try
             {
-                await metroWindow.ShowMessageAsync("Error", "An error has occurred!");
+
+                string modOrderJson = Settings.Default.ModOrder;
+
+                List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
+
+                if (modOrder == null)
+                    modOrder = new List<ModBuildOrder>();
+
+                modOrder = modOrder.OrderBy(p => p.BuildOrder).ToList();
+
+                foreach (var mod in InstalledMods)
+                {
+
+                    ModBuildOrder mbo = modOrder.FirstOrDefault(p => p.ModName.Equals(mod.Name, StringComparison.OrdinalIgnoreCase));
+
+                    if (mbo != null)
+                    {
+                        mod.ModOrder = mbo.BuildOrder;
+                    }
+                    else
+                    {
+
+                        int x = 0;
+
+                        if (modOrder.Any())
+                            x = modOrder.Max(p => p.BuildOrder) + 1;
+
+                        mod.ModOrder = x;
+
+                        modOrder.Add(new ModBuildOrder { ModName = mod.Name, BuildOrder = x });
+
+                    }
+
+                }
+
+                InstalledMods = new ObservableCollection<InstalledMod>(InstalledMods.OrderBy(p => p.ModOrder));
+
+                Settings.Default.ModOrder = await JsonConvert.SerializeObjectAsync(modOrder);
+                Settings.Default.Save();
+
+                await Task.Run(() =>
+                {
+                    if (forceRebuild)
+                    {
+                        StarBound.RebuildMods(Settings.Default.SBInstallFolder, modOrder);
+                    }
+                });
+
+
             }
+            catch (Exception ex)
+            {
+                exception = ex;
+            }
+
+            if (exception != null)
+                await metroWindow.ShowMessageAsync("Error", exception.Message);
 
         }
 
@@ -867,7 +947,26 @@ namespace ModBound.ViewModels
 
             }
 
-            IOHelper.DeleteDirectory(mod.Path);
+            string modOrderJson = Settings.Default.ModOrder;
+
+            List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
+
+            ModBuildOrder mbo = modOrder.SingleOrDefault(p => p.ModName.Equals(mod.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (mbo != null)
+            {
+
+                modOrder.Remove(mbo);
+
+                Settings.Default.ModOrder = await JsonConvert.SerializeObjectAsync(modOrder);
+                Settings.Default.Save();
+
+            }
+
+            if (Directory.Exists(mod.Path))
+            {
+                IOHelper.DeleteDirectory(mod.Path);
+            }
 
             await RefreshInstalledMods();
 
@@ -937,6 +1036,12 @@ namespace ModBound.ViewModels
 
             string fileName = Path.Combine(TempDir, TempFileDir, latest.File.FileName);
 
+            Dispatcher dispatch = Dispatcher.CurrentDispatcher;
+
+            string modOrderJson = Settings.Default.ModOrder;
+
+            List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
+
             bool result = await Task.Run(async () =>
             {
 
@@ -945,18 +1050,18 @@ namespace ModBound.ViewModels
 
                     await _api.DownloadModFile(mod.ID, latest.Version, latest.File.FileName, fileName);
 
-                    ModInstallResult res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
+                    ModInstallResult res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName, modOrder, Settings.Default.MergeMods);
 
                     var depsNeeded = res.DependenciesNeeded.ToList();
 
-                    Dispatcher.CurrentDispatcher.Invoke(async () => await prog.CloseAsync());
+                    dispatch.Invoke(async () => await prog.CloseAsync());
 
                     if (!res.Result && depsNeeded.Count > 0)
                     {
 
-                        if (await InstallRequiredDependencies(depsNeeded))
+                        if (await dispatch.Invoke(async () => await InstallRequiredDependencies(depsNeeded)))
                         {
-                            res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName);
+                            res = StarBound.InstallMod(Settings.Default.SBInstallFolder, fileName, modOrder, Settings.Default.MergeMods);
                         }
 
                     }
@@ -974,9 +1079,14 @@ namespace ModBound.ViewModels
             File.Delete(fileName);
 
             if (!result)
+            {
                 await metroWindow.ShowMessageAsync("Error", "An error has occurrred!");
+            }
             else
+            {
                 await RefreshInstalledMods();
+                await RefreshModOrder(true);
+            }
 
             return result;
 
@@ -1258,6 +1368,62 @@ namespace ModBound.ViewModels
 
 
             return true;
+
+        }
+
+        public void DragOver(IDropInfo dropInfo)
+        {
+
+            if (dropInfo.Data is DataObject || dropInfo.Data is InstalledMod)
+            {
+                dropInfo.DropTargetAdorner = DropTargetAdorners.Highlight;
+                dropInfo.Effects = DragDropEffects.Copy;
+            }
+
+        }
+
+        public async void Drop(IDropInfo dropInfo)
+        {
+
+            var o = dropInfo.Data as DataObject;
+
+            var source = dropInfo.TargetItem as InstalledMod;
+            var target = dropInfo.Data as InstalledMod;
+
+            if (o != null && o.GetDataPresent(DataFormats.FileDrop))
+            {
+
+                string[] data = (string[])o.GetData(DataFormats.FileDrop);
+
+                InstallMod(data[0]);
+
+            }
+            else if (source != null && target != null)
+            {
+
+                string modOrderJson = Settings.Default.ModOrder;
+
+                List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
+
+                var sOrder = modOrder.SingleOrDefault(p => p.ModName.Equals(source.Name, StringComparison.OrdinalIgnoreCase));
+                var tOrder = modOrder.SingleOrDefault(p => p.ModName.Equals(target.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (sOrder != null && tOrder != null)
+                {
+
+                    int temp = tOrder.BuildOrder;
+
+                    tOrder.BuildOrder = sOrder.BuildOrder;
+                    sOrder.BuildOrder = temp;
+
+                }
+
+                Settings.Default.ModOrder = await JsonConvert.SerializeObjectAsync(modOrder);
+                Settings.Default.Save();
+
+                await RefreshModOrder(true);
+
+            }
 
         }
 

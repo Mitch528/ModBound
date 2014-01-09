@@ -28,6 +28,7 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using MahApps.Metro.Controls;
 using MahApps.Metro.Controls.Dialogs;
+using ModBound.Models;
 using ModBound.ViewModels;
 
 namespace ModBound.Views

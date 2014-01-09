@@ -24,14 +24,19 @@ namespace ModBoundLib
     public class ModInfo
     {
 
+        [JsonProperty(PropertyName = "name")]
         public string Name { get; set; }
 
+        [JsonProperty(PropertyName = "version")]
         public string Version { get; set; }
 
+        [JsonProperty(PropertyName = "path")]
         public string Path { get; set; }
 
+        [JsonProperty(PropertyName = "dependencies")]
         public string[] Dependencies { get; set; }
 
+        [JsonProperty(PropertyName = "extradata")]
         public ModInfoExtraData ExtraData { get; set; }
 
         [JsonIgnore]
