@@ -52,8 +52,8 @@ namespace ModBound.Helpers
                     var doc = new FlowDocument();
                     var range = new TextRange(doc.ContentStart, doc.ContentEnd);
 
-                    range.Load(new MemoryStream(Encoding.UTF8.GetBytes(xaml)),
-                      DataFormats.Rtf);
+                    using (MemoryStream ms = new MemoryStream(Encoding.Unicode.GetBytes(xaml)))
+                        range.Load(ms, DataFormats.Rtf);
 
                     // Set the document
                     richTextBox.Document = doc;
@@ -63,10 +63,12 @@ namespace ModBound.Helpers
                     {
                         if (richTextBox.Document == doc)
                         {
-                            MemoryStream buffer = new MemoryStream();
-                            range.Save(buffer, DataFormats.Rtf);
-                            SetDocumentXaml(richTextBox,
-                              Encoding.UTF8.GetString(buffer.ToArray()));
+                            using (MemoryStream buffer = new MemoryStream())
+                            {
+                                range.Save(buffer, DataFormats.Rtf);
+                                SetDocumentXaml(richTextBox,
+                                  Encoding.Unicode.GetString(buffer.ToArray()));
+                            }
                         }
                     };
                 }

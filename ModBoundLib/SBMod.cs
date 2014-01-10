@@ -29,6 +29,8 @@ namespace ModBoundLib
 
         public string Author { get; set; }
 
+        public int Downloads { get; set; }
+
         public List<SBModVersion> Versions { get; set; }
 
         public string Description { get; set; }

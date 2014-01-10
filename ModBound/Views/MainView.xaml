@@ -129,9 +129,9 @@
                             <ListView.View>
                                 <GridView AllowsColumnReorder="False">
                                     <GridViewColumn Header="Name" Width="175" DisplayMemberBinding="{Binding Name}"/>
-                                    <GridViewColumn Header="Author" Width="150" DisplayMemberBinding="{Binding Author}"/>
+                                    <GridViewColumn Header="Author" Width="125" DisplayMemberBinding="{Binding Author}"/>
                                     <GridViewColumn Header="Version" Width="75" DisplayMemberBinding="{Binding Version}"/>
-                                    <GridViewColumn Header="Actions" Width="300">
+                                    <GridViewColumn Header="Actions" Width="325">
                                         <GridViewColumn.CellTemplate>
                                             <DataTemplate>
                                                 <StackPanel Orientation="Horizontal">
@@ -184,6 +184,7 @@
                                 <GridViewColumn Header="Name" Width="300" DisplayMemberBinding="{Binding Name}"/>
                                 <GridViewColumn Header="Author" Width="200" DisplayMemberBinding="{Binding Author}"/>
                                 <GridViewColumn Header="Version" Width="100" DisplayMemberBinding="{Binding Version}"/>
+                                <GridViewColumn Header="Downloads" Width="100" DisplayMemberBinding="{Binding Downloads}"/>
                                 <GridViewColumn Header="Actions" Width="400">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
@@ -247,9 +248,7 @@
                                 </Image.ToolTip>
                             </Image>
                             <Border BorderThickness="1" BorderBrush="White" Margin="31,204,26,10">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto" Width="595" Margin="0" FontSize="16">
-                                    <TextBlock Text="{Binding SelectedMod.Description}" HorizontalAlignment="Left" VerticalAlignment="Top" Foreground="White" Width="595" TextWrapping="Wrap"/>
-                                </ScrollViewer>
+                                <TextBox Text="{Binding SelectedMod.Description}" TextWrapping="Wrap" IsReadOnly="True" FontSize="16" VerticalScrollBarVisibility="Auto"/>
                             </Border>
                             <controls:ProgressRing IsActive="{Binding IsRefreshingSelectedMod}"/>
                             <Label Content="Description" HorizontalAlignment="Left" Margin="31,162,0,0" VerticalAlignment="Top" Foreground="White" FontSize="18"/>

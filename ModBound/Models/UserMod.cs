@@ -24,6 +24,27 @@ namespace ModBound.Models
     public class UserMod : Mod
     {
 
+        private int _downloads;
+
+        public int Downloads
+        {
+            get
+            {
+                return _downloads;
+            }
+            set
+            {
+
+                if (_downloads == value)
+                    return;
+
+                _downloads = value;
+
+                OnPropertyChanged();
+
+            }
+        }
+
         public ObservableCollection<ModVersion> Versions { get; set; }
 
         public UserMod()

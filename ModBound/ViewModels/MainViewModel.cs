@@ -219,6 +219,8 @@ namespace ModBound.ViewModels
             {
             }
 
+            await RefreshModOrder();
+
         }
 
         private async Task DownloadUnsyncedMods()
@@ -299,6 +301,7 @@ namespace ModBound.ViewModels
             uMod.Name = mod.Name;
             uMod.Author = mod.Author;
             uMod.Description = mod.Description;
+            uMod.Downloads = mod.Downloads;
 
             if (firstModVersion != null)
                 uMod.Version = firstModVersion.Version;
@@ -685,19 +688,22 @@ namespace ModBound.ViewModels
             var prog = await metroWindow.ShowProgressAsync("Working....", "Installing Mod");
             prog.SetIndeterminate();
 
-            ModInstallResult result = null;
+            ModInstallResult result;
 
             Dispatcher dispatch = Dispatcher.CurrentDispatcher;
 
             string modOrderJson = Settings.Default.ModOrder;
-
-            List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
 
             Exception exception = await Task.Run(async () =>
             {
 
                 try
                 {
+
+                    List<ModBuildOrder> modOrder = new List<ModBuildOrder>();
+
+                    if (!string.IsNullOrEmpty(modOrderJson))
+                        modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
 
                     result = StarBound.InstallMod(Settings.Default.SBInstallFolder, zipFile, modOrder, Settings.Default.MergeMods);
 
@@ -748,10 +754,10 @@ namespace ModBound.ViewModels
 
                 string modOrderJson = Settings.Default.ModOrder;
 
-                List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
+                List<ModBuildOrder> modOrder = new List<ModBuildOrder>();
 
-                if (modOrder == null)
-                    modOrder = new List<ModBuildOrder>();
+                if (!string.IsNullOrEmpty(modOrderJson))
+                    modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
 
                 modOrder = modOrder.OrderBy(p => p.BuildOrder).ToList();
 
@@ -949,17 +955,22 @@ namespace ModBound.ViewModels
 
             string modOrderJson = Settings.Default.ModOrder;
 
-            List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
-
-            ModBuildOrder mbo = modOrder.SingleOrDefault(p => p.ModName.Equals(mod.Name, StringComparison.OrdinalIgnoreCase));
-
-            if (mbo != null)
+            if (!string.IsNullOrEmpty(modOrderJson))
             {
 
-                modOrder.Remove(mbo);
+                List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
 
-                Settings.Default.ModOrder = await JsonConvert.SerializeObjectAsync(modOrder);
-                Settings.Default.Save();
+                ModBuildOrder mbo = modOrder.SingleOrDefault(p => p.ModName.Equals(mod.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (mbo != null)
+                {
+
+                    modOrder.Remove(mbo);
+
+                    Settings.Default.ModOrder = await JsonConvert.SerializeObjectAsync(modOrder);
+                    Settings.Default.Save();
+
+                }
 
             }
 
@@ -1040,13 +1051,16 @@ namespace ModBound.ViewModels
 
             string modOrderJson = Settings.Default.ModOrder;
 
-            List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
-
             bool result = await Task.Run(async () =>
             {
 
                 try
                 {
+
+                    List<ModBuildOrder> modOrder = new List<ModBuildOrder>();
+
+                    if (!string.IsNullOrEmpty(modOrderJson))
+                        modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
 
                     await _api.DownloadModFile(mod.ID, latest.Version, latest.File.FileName, fileName);
 
@@ -1403,23 +1417,28 @@ namespace ModBound.ViewModels
 
                 string modOrderJson = Settings.Default.ModOrder;
 
-                List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
-
-                var sOrder = modOrder.SingleOrDefault(p => p.ModName.Equals(source.Name, StringComparison.OrdinalIgnoreCase));
-                var tOrder = modOrder.SingleOrDefault(p => p.ModName.Equals(target.Name, StringComparison.OrdinalIgnoreCase));
-
-                if (sOrder != null && tOrder != null)
+                if (!string.IsNullOrEmpty(modOrderJson))
                 {
 
-                    int temp = tOrder.BuildOrder;
+                    List<ModBuildOrder> modOrder = await JsonConvert.DeserializeObjectAsync<List<ModBuildOrder>>(modOrderJson);
 
-                    tOrder.BuildOrder = sOrder.BuildOrder;
-                    sOrder.BuildOrder = temp;
+                    var sOrder = modOrder.SingleOrDefault(p => p.ModName.Equals(source.Name, StringComparison.OrdinalIgnoreCase));
+                    var tOrder = modOrder.SingleOrDefault(p => p.ModName.Equals(target.Name, StringComparison.OrdinalIgnoreCase));
+
+                    if (sOrder != null && tOrder != null)
+                    {
+
+                        int temp = tOrder.BuildOrder;
+
+                        tOrder.BuildOrder = sOrder.BuildOrder;
+                        sOrder.BuildOrder = temp;
+
+                    }
+
+                    Settings.Default.ModOrder = await JsonConvert.SerializeObjectAsync(modOrder);
+                    Settings.Default.Save();
 
                 }
-
-                Settings.Default.ModOrder = await JsonConvert.SerializeObjectAsync(modOrder);
-                Settings.Default.Save();
 
                 await RefreshModOrder(true);
 
