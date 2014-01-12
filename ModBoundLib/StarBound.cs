@@ -80,11 +80,6 @@ namespace ModBoundLib
                 archive.WriteToDirectory(tempDir, ExtractOptions.ExtractFullPath | ExtractOptions.Overwrite);
             }
 
-            //using (ZipArchive archive = ZipFile.Open(modFile, ZipArchiveMode.Read))
-            //{
-            //    archive.ExtractToDirectory(tempDir);
-            //}
-
             List<string> modInfoFiles = SearchForModInfos(tempDir).ToList();
 
             if (!modInfoFiles.Any())
@@ -159,7 +154,7 @@ namespace ModBoundLib
                     string path = Path.Combine(installDir, ModBoundDir, midInfo.Name);
 
                     if (Directory.Exists(path))
-                        IOHelper.DeleteDirectory(path);
+                        IOHelper.DeleteDirectory(path, false);
 
                     IOHelper.CopyDirectory(modInfoDir, path);
 
@@ -173,7 +168,7 @@ namespace ModBoundLib
                     string path = Path.Combine(installDir, WindowsFolder, modSource, midInfo.Name);
 
                     if (Directory.Exists(path))
-                        IOHelper.DeleteDirectory(path);
+                        IOHelper.DeleteDirectory(path, false);
 
 
                     IOHelper.CopyDirectory(modInfoDir, path);
@@ -266,36 +261,39 @@ namespace ModBoundLib
 
             }
 
-            foreach (DirectoryInfo dInfo in new DirectoryInfo(mbPath).GetDirectories())
+            if (Directory.Exists(mbPath))
             {
-
-                FileInfo[] fileInfos = dInfo.GetFiles();
-
-                FileInfo fInfo = fileInfos.FirstOrDefault(p => p.Extension == ModInfoFileExt);
-
-                if (fInfo == null)
-                    continue;
-
-                ModInfo mInfo;
-
-                try
-                {
-                    mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName));
-                }
-                catch (Exception)
-                {
-                    continue;
-                }
-
-                if (mInfo != null)
+                foreach (DirectoryInfo dInfo in new DirectoryInfo(mbPath).GetDirectories())
                 {
 
-                    mInfo.ModPath = dInfo.FullName;
+                    FileInfo[] fileInfos = dInfo.GetFiles();
 
-                    modInfos.Add(mInfo);
+                    FileInfo fInfo = fileInfos.FirstOrDefault(p => p.Extension == ModInfoFileExt);
+
+                    if (fInfo == null)
+                        continue;
+
+                    ModInfo mInfo;
+
+                    try
+                    {
+                        mInfo = JsonConvert.DeserializeObject<ModInfo>(File.ReadAllText(fInfo.FullName));
+                    }
+                    catch (Exception)
+                    {
+                        continue;
+                    }
+
+                    if (mInfo != null)
+                    {
+
+                        mInfo.ModPath = dInfo.FullName;
+
+                        modInfos.Add(mInfo);
+
+                    }
 
                 }
-
             }
 
             return modInfos.DistinctBy(p => p.Name.ToLower());

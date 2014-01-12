@@ -475,9 +475,9 @@ namespace ModBound.ViewModels
         public async void ImportMod()
         {
 
-            var openResult = new OpenFileResult("Select a .zip file containing the mod to import")
+            var openResult = new OpenFileResult("Select a file containing the mod to import")
                 .In(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments))
-                .FilterFiles(filter => filter.AddFilter("zip").WithDefaultDescription())
+                .FilterFiles(filter => filter.AddFilter("zip").WithDefaultDescription().AddFilter("rar").WithDefaultDescription())
                 .WithFileDo(x =>
                 {
                     if (File.Exists(x) && Path.GetExtension(x) == ".zip")
@@ -732,7 +732,7 @@ namespace ModBound.ViewModels
             });
 
             await RefreshInstalledMods();
-            await RefreshModOrder(true);
+            await RefreshModOrder(Settings.Default.MergeMods);
 
             if (exception != null)
             {
@@ -1099,7 +1099,7 @@ namespace ModBound.ViewModels
             else
             {
                 await RefreshInstalledMods();
-                await RefreshModOrder(true);
+                await RefreshModOrder(Settings.Default.MergeMods);
             }
 
             return result;
@@ -1440,7 +1440,7 @@ namespace ModBound.ViewModels
 
                 }
 
-                await RefreshModOrder(true);
+                await RefreshModOrder(Settings.Default.MergeMods);
 
             }
 
