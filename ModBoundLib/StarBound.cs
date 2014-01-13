@@ -221,6 +221,9 @@ namespace ModBoundLib
         public static IEnumerable<ModInfo> GetInstalledMods(string installDir)
         {
 
+            if (string.IsNullOrEmpty(installDir))
+                throw new ArgumentNullException("installDir");
+
             List<ModInfo> modInfos = new List<ModInfo>();
 
             string mbPath = Path.Combine(installDir, ModBoundDir);

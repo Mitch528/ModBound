@@ -26,7 +26,7 @@ using System.Windows;
 [assembly: AssemblyConfiguration("")]
 [assembly: AssemblyCompany("Xanthics")]
 [assembly: AssemblyProduct("ModBound")]
-[assembly: AssemblyCopyright("Copyright ©  2013")]
+[assembly: AssemblyCopyright("Copyright © 2014 Mitchell Kutchuk")]
 [assembly: AssemblyTrademark("")]
 [assembly: AssemblyCulture("")]
 
@@ -65,6 +65,6 @@ using System.Windows;
 // You can specify all the values or you can default the Build and Revision Numbers 
 // by using the '*' as shown below:
 // [assembly: AssemblyVersion("1.0.*")]
-[assembly: AssemblyVersion("1.2.2")]
+[assembly: AssemblyVersion("1.2.3")]
 [assembly: AssemblyFileVersion("0.1")]
 [assembly: AssemblyInformationalVersion("0.1")]

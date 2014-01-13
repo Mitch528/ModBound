@@ -119,18 +119,18 @@ namespace ModBound.ViewModels
                 Settings.Default.Save();
             }
 
-            if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder))
+            if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder) || !Directory.Exists(Settings.Default.SBInstallFolder))
             {
 
                 Settings.Default.SBInstallFolder = StarBound.SearchForInstallDir();
                 Settings.Default.Save();
 
-                _sbInstallFolder = Settings.Default.SBInstallFolder;
+                SbInstallFolder = Settings.Default.SBInstallFolder;
 
             }
             else
             {
-                _sbInstallFolder = Settings.Default.SBInstallFolder;
+                SbInstallFolder = Settings.Default.SBInstallFolder;
             }
 
             _loginButtonText = "Login";
@@ -372,7 +372,14 @@ namespace ModBound.ViewModels
 
         public void OpenSettingsDialog()
         {
-            _windowManager.ShowDialog(new SettingsViewModel());
+
+            bool? result = _windowManager.ShowDialog(new SettingsViewModel());
+
+            if (result.HasValue && result.Value)
+            {
+                SbInstallFolder = Settings.Default.SBInstallFolder;
+            }
+
         }
 
         public async Task<bool> OpenRegisterDialog()
@@ -478,11 +485,7 @@ namespace ModBound.ViewModels
             var openResult = new OpenFileResult("Select a file containing the mod to import")
                 .In(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments))
                 .FilterFiles(filter => filter.AddFilter("zip").WithDefaultDescription().AddFilter("rar").WithDefaultDescription())
-                .WithFileDo(x =>
-                {
-                    if (File.Exists(x) && Path.GetExtension(x) == ".zip")
-                        InstallMod(x);
-                });
+                .WithFileDo(InstallMod);
 
             try
             {
@@ -497,7 +500,7 @@ namespace ModBound.ViewModels
         public void AddMod()
         {
 
-            UserMod uMod = new UserMod() { Name = "My mod" };
+            UserMod uMod = new UserMod { Name = "My mod" };
 
             MyMods.Add(uMod);
 
@@ -685,6 +688,16 @@ namespace ModBound.ViewModels
         {
 
             var metroWindow = (MetroWindow)Application.Current.MainWindow;
+
+            if (string.IsNullOrEmpty(Settings.Default.SBInstallFolder))
+            {
+
+                await metroWindow.ShowMessageAsync("Error", "Could not automatically find Starbound's installation folder! Please add the location in the settings window.");
+
+                return;
+
+            }
+
             var prog = await metroWindow.ShowProgressAsync("Working....", "Installing Mod");
             prog.SetIndeterminate();
 

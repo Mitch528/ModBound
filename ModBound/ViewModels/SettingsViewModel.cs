@@ -1,9 +1,13 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Caliburn.Micro;
+using Caliburn.Micro.Contrib.Results;
 using ModBound.Properties;
+using ModBoundLib;
 
 namespace ModBound.ViewModels
 {
@@ -12,6 +16,7 @@ namespace ModBound.ViewModels
 
         public SettingsViewModel()
         {
+            StarboundInstallFolder = Settings.Default.SBInstallFolder;
             MergeMods = Settings.Default.MergeMods;
         }
 
@@ -19,6 +24,7 @@ namespace ModBound.ViewModels
         {
 
             Settings.Default.MergeMods = MergeMods;
+            Settings.Default.SBInstallFolder = StarboundInstallFolder;
             Settings.Default.Save();
 
             TryClose(true);
@@ -28,6 +34,54 @@ namespace ModBound.ViewModels
         public void Cancel()
         {
             TryClose(false);
+        }
+
+        public async void Browse()
+        {
+
+            var browseResult = new BrowseFolderResult("Select the Starbound installation folder")
+                .In(Environment.SpecialFolder.MyComputer)
+                .WithSelectedPathDo(x =>
+                {
+
+                    DirectoryInfo dInfo = new DirectoryInfo(x);
+
+                    if (dInfo.Exists && dInfo.GetDirectories().Any(p => p.Name.Equals(StarBound.WindowsFolder, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        StarboundInstallFolder = x;
+                    }
+                    
+                });
+
+            try
+            {
+                await browseResult.ExecuteAsync();
+            }
+            catch (Exception)
+            {
+            }
+
+        }
+
+        private string _starboundInstallFolder;
+
+        public string StarboundInstallFolder
+        {
+            get
+            {
+                return _starboundInstallFolder;
+            }
+            set
+            {
+
+                if (_starboundInstallFolder == value)
+                    return;
+
+                _starboundInstallFolder = value;
+
+                NotifyOfPropertyChange(() => StarboundInstallFolder);
+
+            }
         }
 
         private bool _mergeMods;
