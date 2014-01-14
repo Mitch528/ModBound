@@ -45,6 +45,27 @@ namespace ModBound.Models
             }
         }
 
+        private string _lastUpdated;
+
+        public string LastUpdated
+        {
+            get
+            {
+                return _lastUpdated;
+            }
+            set
+            {
+
+                if (_lastUpdated == value)
+                    return;
+
+                _lastUpdated = value;
+
+                OnPropertyChanged();
+
+            }
+        }
+
         public ObservableCollection<ModVersion> Versions { get; set; }
 
         public UserMod()

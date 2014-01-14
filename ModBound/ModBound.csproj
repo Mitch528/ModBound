@@ -101,6 +101,7 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Adroners\SortAdorner.cs" />
     <Compile Include="Converters\StringEmailGravatarConverter.cs" />
     <Compile Include="Extensions\StringExtensions.cs" />
     <Compile Include="ViewModels\RegisterViewModel.cs" />

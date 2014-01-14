@@ -68,6 +68,7 @@
     <Compile Include="ModInfo.cs" />
     <Compile Include="ModInfoExtraData.cs" />
     <Compile Include="ModInstallResult.cs" />
+    <Compile Include="ModSortType.cs" />
     <Compile Include="ModTypes.cs" />
     <Compile Include="MoreLinq\MoreEnumerable.DistinctBy.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />

@@ -40,7 +40,7 @@ namespace ModBoundLib
         public const string WindowsFolder = "win32";
 
         private readonly static string[] ExtensionsToIgnore = {
-            ".png", ".wav", ".ogg", ".lua", ".ttf", ".dat"
+            ".png", ".wav", ".ogg", ".lua", ".ttf", ".dat", ".db"
         };
 
         private readonly static string[] ExtensionsToNotCopy = {
@@ -542,14 +542,7 @@ namespace ModBoundLib
 
             var token = j["assetSources"];
 
-            List<string> sources = new List<string>();
-
-            foreach (var t in token)
-            {
-                sources.Add(t.Value<string>());
-            }
-
-            return sources;
+            return token.Select(t => t.Value<string>());
 
         }
 

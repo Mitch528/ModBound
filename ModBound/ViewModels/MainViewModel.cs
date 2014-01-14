@@ -55,6 +55,8 @@ namespace ModBound.ViewModels
         private bool _isRefreshingSelectedMod;
         private bool _isRefreshingInstalledMods;
 
+        private bool _modSortDesc;
+
         private bool _isSignedIn;
 
         private Visibility _registerButtonVisible;
@@ -137,6 +139,8 @@ namespace ModBound.ViewModels
 
             _api = ModBoundApi.Default;
             _api.SetLoginDetails(Settings.Default.Username, Settings.Default.Password.DecryptString(Encoding.Unicode.GetBytes(Settings.Default.Entropy)).ToInsecureString());
+
+            _modSortDesc = false;
 
             _isSignedIn = false;
             _isRefreshingMyMods = false;
@@ -254,7 +258,7 @@ namespace ModBound.ViewModels
 
             AvailableMods.Clear();
 
-            List<SBMod> mods = await _api.GetMods(_pageCtr, SearchModText);
+            List<SBMod> mods = await _api.GetMods(_pageCtr, SearchModText, _modSortDesc);
 
             foreach (SBMod mod in mods)
             {
@@ -304,7 +308,10 @@ namespace ModBound.ViewModels
             uMod.Downloads = mod.Downloads;
 
             if (firstModVersion != null)
+            {
+                uMod.LastUpdated = firstModVersion.DateAdded.ToLocalTime().ToString("g");
                 uMod.Version = firstModVersion.Version;
+            }
 
             uMod.Versions = new ObservableCollection<ModVersion>();
 
@@ -646,8 +653,16 @@ namespace ModBound.ViewModels
         public async void BrowseForMod(ModVersionFile file)
         {
 
+            var metroWindow = (MetroWindow)Application.Current.MainWindow;
+
             if (file == null)
+            {
+
+                await metroWindow.ShowMessageAsync("Error", "You must first add a version to the mod!");
+
                 return;
+
+            }
 
             var openResult = new OpenFileResult("Select a file to add to this mod version")
                 .In(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments))
@@ -844,7 +859,7 @@ namespace ModBound.ViewModels
             foreach (var modInfo in StarBound.GetInstalledMods(Settings.Default.SBInstallFolder))
             {
 
-                List<SBMod> mods = await _api.GetMods(0, modInfo.Name);
+                List<SBMod> mods = await _api.GetMods(0, modInfo.Name, false);
                 mods = mods.Where(p => p.Name.Equals(modInfo.Name, StringComparison.OrdinalIgnoreCase)).ToList();
 
                 InstalledMod mod = new InstalledMod();
@@ -1183,7 +1198,9 @@ namespace ModBound.ViewModels
                 foreach (var screenshot in latestVer.ScreenShots.Where(p => !string.IsNullOrEmpty(p.FileName)))
                 {
 
-                    string fName = Path.Combine(TempDir, TempFileDir, String.Format("{0}_{1}_{2}", mod.ID, latestVer.Version, screenshot.FileName));
+                    string sfName = screenshot.FileName.Replace("\"", String.Empty);
+
+                    string fName = Path.Combine(TempDir, TempFileDir, String.Format("{0}_{1}_{2}", mod.ID, latestVer.Version, sfName));
 
                     if (!File.Exists(fName))
                         await _api.DownloadModFile(mod.ID, latestVer.Version, screenshot.FileName, fName);
@@ -1349,7 +1366,7 @@ namespace ModBound.ViewModels
             foreach (string dep in depsNeeded)
             {
 
-                List<SBMod> modsFound = await _api.GetMods(0, dep);
+                List<SBMod> modsFound = await _api.GetMods(0, dep, false);
 
                 if (modsFound.Count > 0)
                 {
@@ -1395,6 +1412,21 @@ namespace ModBound.ViewModels
 
 
             return true;
+
+        }
+
+        public async void SortAvailableModsByType(ModSortType type, bool desc)
+        {
+
+            _modSortDesc = desc;
+
+            IsRefreshingMods = true;
+
+            List<SBMod> mods = await _api.GetMods(_pageCtr, SearchModText, desc, type);
+
+            AvailableMods = new ObservableCollection<UserMod>(mods.Select(SBModToUserMod));
+
+            IsRefreshingMods = false;
 
         }
 

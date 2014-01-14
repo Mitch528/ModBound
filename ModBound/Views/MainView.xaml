@@ -177,15 +177,28 @@
             </TabItem>
             <TabItem Header="Mods" Style="{DynamicResource TabStyle}">
                 <Grid Background="#FF252525">
-                    <ListView HorizontalAlignment="Left" Height="549" Margin="10,40,0,0" VerticalAlignment="Top" Width="1169" x:Name="ModsAvailableListView" ItemsSource="{Binding AvailableMods}"
-						SelectedItem="{Binding SelectedMod}">
+                    <ListView HorizontalAlignment="Left" Height="549" Margin="10,40,0,0" VerticalAlignment="Top" Width="1169" x:Name="ModsAvailableListView" 
+                              ItemsSource="{Binding AvailableMods, UpdateSourceTrigger=PropertyChanged}" SelectedItem="{Binding SelectedMod}">
                         <ListView.View>
                             <GridView AllowsColumnReorder="False">
-                                <GridViewColumn Header="Name" Width="300" DisplayMemberBinding="{Binding Name}"/>
+                                <GridViewColumn Width="250" DisplayMemberBinding="{Binding Name}">
+                                    <GridViewColumn.Header>
+                                        <GridViewColumnHeader Tag="Name" Click="ModsColumnHeader_Click">Name</GridViewColumnHeader>
+                                    </GridViewColumn.Header>
+                                </GridViewColumn>
                                 <GridViewColumn Header="Author" Width="200" DisplayMemberBinding="{Binding Author}"/>
                                 <GridViewColumn Header="Version" Width="100" DisplayMemberBinding="{Binding Version}"/>
-                                <GridViewColumn Header="Downloads" Width="100" DisplayMemberBinding="{Binding Downloads}"/>
-                                <GridViewColumn Header="Actions" Width="400">
+                                <GridViewColumn Width="100" DisplayMemberBinding="{Binding Downloads}">
+                                    <GridViewColumn.Header>
+                                        <GridViewColumnHeader Tag="Downloads" Click="ModsColumnHeader_Click">Downloads</GridViewColumnHeader>
+                                    </GridViewColumn.Header>
+                                </GridViewColumn>
+                                <GridViewColumn Width="150" DisplayMemberBinding="{Binding LastUpdated}">
+                                    <GridViewColumn.Header>
+                                        <GridViewColumnHeader Tag="LastUpdate" Click="ModsColumnHeader_Click">Last Update</GridViewColumnHeader>
+                                    </GridViewColumn.Header>
+                                </GridViewColumn>
+                                <GridViewColumn Header="Actions" Width="350">
                                     <GridViewColumn.CellTemplate>
                                         <DataTemplate>
                                             <StackPanel Orientation="Horizontal">

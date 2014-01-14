@@ -247,12 +247,12 @@ namespace ModBoundLib
 
         }
 
-        public async Task<List<SBMod>> GetMods(int page, string filter = "")
+        public async Task<List<SBMod>> GetMods(int page, string filter, bool desc, ModSortType type = ModSortType.None)
         {
 
             await EnsureSignedIn();
 
-            return (await Post<SBModResponse>("GetMods", new { Filter = filter, Page = page }, _authCookie)).Mods;
+            return (await Post<SBModResponse>("GetMods", new { Filter = filter, Page = page, SortType = type, Descending = desc }, _authCookie)).Mods;
 
         }
 

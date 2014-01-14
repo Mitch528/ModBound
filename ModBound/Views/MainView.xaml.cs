@@ -14,6 +14,7 @@
 // along with ModBound.  If not, see <http://www.gnu.org/licenses/>.
 using System;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -28,8 +29,10 @@ using System.Windows.Navigation;
 using System.Windows.Shapes;
 using MahApps.Metro.Controls;
 using MahApps.Metro.Controls.Dialogs;
+using ModBound.Adroners;
 using ModBound.Models;
 using ModBound.ViewModels;
+using ModBoundLib;
 
 namespace ModBound.Views
 {
@@ -39,40 +42,54 @@ namespace ModBound.Views
     public partial class MainView : UserControl
     {
 
+        private GridViewColumnHeader listViewSortCol = null;
+        private SortAdorner listViewSortAdorner = null;
+
         public MainView()
         {
             InitializeComponent();
         }
 
-        private void InstalledModsListView_Drop(object sender, DragEventArgs e)
+        //Credit: http://www.wpf-tutorial.com/listview-control/listview-how-to-column-sorting/
+        private void ModsColumnHeader_Click(object sender, RoutedEventArgs e)
         {
+            GridViewColumnHeader column = (sender as GridViewColumnHeader);
+            string sortBy = column.Tag.ToString();
+            if (listViewSortCol != null)
+            {
+                AdornerLayer.GetAdornerLayer(listViewSortCol).Remove(listViewSortAdorner);
+                ModsAvailableListView.Items.SortDescriptions.Clear();
+            }
 
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
+            ListSortDirection newDir = ListSortDirection.Ascending;
+            if (listViewSortCol == column && listViewSortAdorner.Direction == newDir)
+                newDir = ListSortDirection.Descending;
+
+            listViewSortCol = column;
+            listViewSortAdorner = new SortAdorner(listViewSortCol, newDir);
+            AdornerLayer.GetAdornerLayer(listViewSortCol).Add(listViewSortAdorner);
+
+            ModSortType sortType = ModSortType.None;
+
+            switch (sortBy)
             {
 
-                string[] files = (string[])e.Data.GetData(DataFormats.FileDrop);
-
-                ((MainViewModel)DataContext).InstallMod(files[0]);
+                case "Name":
+                    sortType = ModSortType.Name;
+                    break;
+                case "Downloads":
+                    sortType = ModSortType.Downloads;
+                    break;
+                case "LastUpdate":
+                    sortType = ModSortType.LastUpdate;
+                    break;
 
             }
 
+            ((MainViewModel)DataContext).SortAvailableModsByType(sortType, newDir == ListSortDirection.Descending);
+
         }
 
-        private void InstalledModsListView_PreviewDragEnter(object sender, DragEventArgs e)
-        {
-            if (e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                e.Effects = DragDropEffects.Copy;
-            }
-            else
-            {
-                e.Effects = DragDropEffects.None;
-            }
-        }
 
-        private void InstalledModsListView_PreviewDragOver(object sender, DragEventArgs e)
-        {
-            e.Handled = true;
-        }
     }
 }
